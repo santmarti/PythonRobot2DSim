@@ -13,6 +13,7 @@ from VectorFigUtils import drawBox, drawCircle, makeFigure, vnorm, dist, vangleS
 start_time = time.time()
 world = Box2D.b2World(gravity=[0.0, -0.001]) # normal gravity -9.8
 arm = None
+nao = None
 ground = 0
 TARGET_FPS=500
 TIME_STEP=1.0/TARGET_FPS
@@ -100,19 +101,29 @@ def drawBox2D(ax, body, fixture, alpha = 0.5, color = 'b', fill=True, linestyle=
     return poly
 
 
-def myCreateRevoluteJoint(bodyA,bodyB,anchor,lowerAngle = -0.7 * np.pi, upperAngle = 0.7 * np.pi):
-    return world.CreateRevoluteJoint(
-            bodyA=bodyA, 
-            bodyB=bodyB, 
-            anchor=anchor,
-            lowerAngle = lowerAngle, # angle limits lower and upper
-            upperAngle = upperAngle, 
-            enableLimit = True,
-            maxMotorTorque = 1000.0,
-            motorSpeed = 0.0,
-            enableMotor = True,
-            collideConnected = False,
-            )
+def myCreateRevoluteJoint(bodyA,bodyB,anchor,lowerAngle = -0.7 * np.pi, upperAngle = 0.7 * np.pi,iswheel=False):
+    if(not iswheel):
+        return world.CreateRevoluteJoint(
+                bodyA=bodyA, 
+                bodyB=bodyB, 
+                anchor=anchor,
+                lowerAngle = lowerAngle, # angle limits lower and upper
+                upperAngle = upperAngle, 
+                enableLimit = True,
+                maxMotorTorque = 1000.0,
+                motorSpeed = 0.0,
+                enableMotor = True,
+                collideConnected = False,
+                )
+    else:
+        return world.CreateRevoluteJoint(
+                bodyA=bodyA, 
+                bodyB=bodyB, 
+                anchor=anchor,
+                maxMotorTorque = 1000.0,
+                motorSpeed = 0.0,
+                enableMotor = True,
+                )
 
 
 def createArm(position = (0,0), nparts = 4, name="simple", bMatplotlib = True, collisionGroup = None, length = 1, bHand = False, hdiv = 1, bLateralize = 0, bShrink = False):
@@ -128,7 +139,7 @@ def createArm(position = (0,0), nparts = 4, name="simple", bMatplotlib = True, c
         anchor = tuple(map(sum,zip(position, (0, d*lsum))))
 
         if(i==0): box = createBox( pos, w, l*0.5, hdiv = hdiv, collisionGroup=-1 )
-        else: box = createBox( pos, w, l*0.5, damping=500, hdiv = hdiv)
+        else: box = createBox( pos, w, l*0.5, damping=500, hdiv = hdiv, collisionGroup=collisionGroup)
 
         if(bLateralize == 0): j = myCreateRevoluteJoint(prevBody,box,anchor)
         elif(bLateralize == 1): 
@@ -164,17 +175,17 @@ def createArm(position = (0,0), nparts = 4, name="simple", bMatplotlib = True, c
 class Arm:
     size_history  = 50
 
-    def __init__(self, nparts=2, position=(0,0), name="simple", bMatplotlib = False, length = 1, bHand = False, hdiv = 1, bLateralize = 0, bShrink = False):
+    def __init__(self, nparts=2, position=(0,0), name="simple", bMatplotlib = False, length = 1, bHand = False, hdiv = 1, bLateralize = 0, bShrink = False, collisionGroup=None):
         global arm, bDebug
+        arm = self
         self.name = name
         self.pos = position
         self.salientMode = "all"
         self.nparts = nparts
         self.bHand = bHand
-        self.jointList = createArm(position, nparts, bLateralize = bLateralize, bMatplotlib = bMatplotlib, length = length, bHand = bHand, hdiv = hdiv, name=name, bShrink = bShrink)
+        self.jointList = createArm(position, nparts, bLateralize = bLateralize, bMatplotlib = bMatplotlib, length = length, bHand = bHand, hdiv = hdiv, name=name, bShrink = bShrink, collisionGroup=collisionGroup)
         self.targetJoints = [0] * nparts      # without np multiply equals repeat
         if(bHand): self.targetJoints += [0]   # withou np sum equals concat
-        arm = self
         self.salient = []
         self.maxSpeedJoint = SPEED_JOINT
         self.targetMode = False
@@ -226,7 +237,7 @@ class Arm:
     def gotoTargetJoints(self, t = [0,0] ):
         self.setTargetJoints(t)
         err = self.errorMinWorldLoop()
-        if(err > 0.05): print self.which,"arm gotoTargetJoints",t,"Could not be reached"
+        #if(err > 0.05): print self.which,"arm gotoTargetJoints",t,"Could not be reached"
         return self.getFinalPos()
 
     def getJointLimits(self):
@@ -254,12 +265,11 @@ class Arm:
         if(part == -1 and self.bHand): # returns the angle when we have hand        
             p = body.position
             ret = [p[0], p[1]]
-            u = (1,0)
-            v = (vertices[-2] - vertices[-1]) 
+            u,v = (1,0), (vertices[-2] - vertices[-1]) #vector to compute angle to return
             angle = vangleSign(u,v)            
             ret = [p[0], p[1], angle]
         else:
-            p = (vertices[-1] + vertices[-2])/2.0
+            p = (vertices[-1] + vertices[-2])/2.0 # in the middle
             ret = [p[0], p[1]]
 
         ret = [round(e,2) for e in ret]
@@ -356,8 +366,8 @@ class Arm:
     def s_mins(self): return [-3.0,  -1.0]
     def s_maxs(self): return [3.0,  3.0]
 
-    def ds_mins(self): return [-5.0,  -5.0]
-    def ds_maxs(self): return [5.0,  5.0]
+    def ds_mins(self): return [-1.0,  -1.0]
+    def ds_maxs(self): return [1.0,  1.0]
 
     def rest_position(self): return [0]*len(self.getJointLimits())
 
@@ -366,7 +376,10 @@ class Arm:
 # Simple robot class
 
 class NaoRobot:
-    def __init__(self, position=(0,0), name="simple", bMatplotlib=False, bTwoArms=True):
+    def __init__(self, position=(0,0), name="simple", bMatplotlib=False, bTwoArms=True, collisionGroup=None):
+        global nao
+        nao = self
+
         self.ini_pos = position
         x,y = position[0], position[1]
         self.salient = []
@@ -386,8 +399,8 @@ class NaoRobot:
             bShrink = True
 
         self.arms = []
-        self.arms.append(Arm(bLateralize = 1, hdiv = 1, nparts=self.nparts, position=(x-w,y), length = length, name=name, bMatplotlib = bMatplotlib, bShrink = bShrink))
-        if(bTwoArms): self.arms.append(Arm(bLateralize = 2, hdiv = 1, nparts=self.nparts, position=(x+w,y), length = length, name=name, bMatplotlib = bMatplotlib, bShrink = bShrink))
+        self.arms.append(Arm(bLateralize = 1, hdiv = 1, nparts=self.nparts, position=(x-w,y), length = length, name=name, bMatplotlib = bMatplotlib, bShrink = bShrink, collisionGroup=collisionGroup))
+        if(bTwoArms): self.arms.append(Arm(bLateralize = 2, hdiv = 1, nparts=self.nparts, position=(x+w,y), length = length, name=name, bMatplotlib = bMatplotlib, bShrink = bShrink, collisionGroup=collisionGroup))
 
     def getMotorSpeeds(self):
         speeds = []
@@ -403,7 +416,12 @@ class NaoRobot:
         if(iarm >= 2): print "getJointLimits Invalid iarm", iarm
         return self.arms[iarm].getJointLimits()
 
-    def getJointAngles(self, iarm = 0):
+    def getJointAngles(self, iarm = -1):
+        m = []
+        if(iarm < 0):
+            m += self.arms[0].getJointAngles()
+            if(self.bTwoArms): m += self.arms[1].getJointAngles()
+            return m
         thearm = self.arms[iarm]
         return thearm.getJointAngles()
 
@@ -423,15 +441,18 @@ class NaoRobot:
         self.update()
         return self.getFinalPos(iarm=iarm)
 
-    def setTargetJoints(self, t = [1,-1, 0, 1]):
-        l = len(t)/2
-        self.arms[0].setTargetJoints(t[0:l])
-        if(self.bTwoArms):
-            self.arms[1].setTargetJoints(t[l:])
 
-    def setTargetJoints(self, t = [1,-1], iarm = 0):
-        if(not self.bTwoArms and iarm==1): return
-        self.arms[iarm].setTargetJoints(t)
+    def setTargetJoints(self, t = [1,-1], iarm = -1):
+        if(iarm<0):
+            if(self.bTwoArms):
+                l = len(t)/2
+                self.arms[0].setTargetJoints(t[0:l])
+                self.arms[1].setTargetJoints(t[l:])
+            else:             
+                self.arms[0].setTargetJoints(t)
+        else:
+            if(not self.bTwoArms and iarm==1): return
+            self.arms[iarm].setTargetJoints(t)
 
     def restPosition(self,online=True, iarms=[0,1], otherarm=-1):
         if(otherarm>=0): 
@@ -458,7 +479,7 @@ class NaoRobot:
 
     def deltaMotorUpdate(self,dm=[]):
         self.deltaMotor(dm)
-        for i in range(20):
+        for i in range(25):
             self.update()
             world.Step(TIME_STEP, vel_iters, pos_iters)
             world.ClearForces()
@@ -503,22 +524,32 @@ class NaoRobot:
     def s_mins(self): return [-3.0,  -2.0]
     def s_maxs(self): return [3.0,  3.0]
 
+
+    def dm_mins(self):  return [-1]*len(self.getJointLimits())
+    def dm_maxs(self):  return [1]*len(self.getJointLimits())
+    def ds_mins(self):  return [-1]*4
+    def ds_maxs(self):  return [1]*4
+    def rest_position(self): return self.m_mins()
+
+
+
+
 # *****************************************************************
 # Experimental Setup Class : NaoRobot class plus walls plus object
 # *****************************************************************
 
-class ExpSetup:
+class ExpSetupNao:
 
     max_motor_speed = 30
 
-    def __init__(self, pos_obj = (0,1.3), pos_nao = (0,0), obj_type = "circle", salientMode = "center", name="simple", debug = False, bTwoArms=True):
+    def __init__(self, pos_obj = (0,1.3), pos_nao = (0,0), obj_type = "circle", salientMode = "center", name="simple", debug = False, bTwoArms=True, bSelfCollisions=True):
         global bDebug
         bDebug = debug        
         print "-------------------------------------------------"
-        print "Created Exp Setup ", name, "Debug: ", bDebug
+        print "Created Exp Bimanual Setup ", name, "Debug: ", bDebug
         self.name = name
         self.dm_lim = 1
-        self.v_lim = 1
+        self.v_lim = 0.3
 
         self.salient = []
         self.haptic = []
@@ -526,7 +557,10 @@ class ExpSetup:
 
         self.addWalls(pos_nao)
 
-        self.nao = NaoRobot(pos_nao,name=name,bTwoArms=bTwoArms)
+        if(bSelfCollisions): collisionGroup=None
+        else: collisionGroup=-1
+
+        self.nao = NaoRobot(pos_nao,name=name,bTwoArms=bTwoArms,collisionGroup=collisionGroup)
         #self.human = NaoRobot( (pos_nao[0],pos_nao[1]+4) )
 
         self.objs = []
@@ -574,7 +608,7 @@ class ExpSetup:
     def start(self,obj_pos=[]):
         if(obj_pos == []): self.obj.position = self.ini_obj_pos
         else: self.obj.position = obj_pos
-        self.nao.gotoTargetJointsAll([1.5,-0.3,-1.5,0.3])
+        self.nao.restPosition(online=False)
 
     def getSalient(self):
         return self.salient
@@ -688,6 +722,67 @@ class ExpSetup:
 
 
 
+# *****************************************************************
+# Arm class of any parts and adding a joint extra hand if wanted
+       
+class CartPole:
+    size_history  = 50
+
+    def __init__(self, position=(0,0), name="simple", bMatplotlib = False, length = 1, bHand = False, collisionGroup=None):
+        global bDebug
+        self.name = name
+        self.pos = position
+        self.salientMode = "all"
+ 
+        circle = createCircle(position, r=0.6, dynamic=True, bMatplotlib = True)
+        box = createBox( (0,1.9), 0.2, 2, dynamic=True, collisionGroup=-1)
+        self.joint = myCreateRevoluteJoint(circle,box,(0,0),iswheel=True)    
+
+    def deltaMotor(self,df):
+        self.joint.motorSpeed = df
+
+# *****************************************************************
+# Experimental Setup Class : Dual CartPole holding object
+# *****************************************************************
+
+class ExpSetupDualCartPole:
+
+    max_motor_speed = 30
+
+    def __init__(self, salientMode = "center", name="simple", debug = False, bSelfCollisions=True):
+        global world, bDebug
+        bDebug = debug        
+        print "-------------------------------------------------"
+        print "Created Exp Dual Cart Pole Setup ", name, "Debug: ", bDebug
+
+        #world = Box2D.b2World(gravity=[0.0, -10])
+        world.gravity = Box2D.b2Vec2(0,-980) 
+
+
+        self.name = name
+        self.salient = []
+
+        self.addWalls([0,0])
+        self.cart = CartPole()
+        self.cart.deltaMotor(0.1)
+        
+        if(bSelfCollisions): collisionGroup=None
+        else: collisionGroup=-1
+      
+        if(bDebug):
+            print "Exp Setup created", "salient points: ", self.salient 
+
+
+    def addWalls(self,pos, bMatplotlib=False): # WALL LIMITS of the world               
+        x,y = pos 
+        wl = 0.2
+        h = (5+1)/2.0
+        createBox((x,y-1), w = 4+2*wl, h = wl, dynamic=False, bMatplotlib = bMatplotlib)
+        #createBox((x,y+5), w = 3, h = wl, dynamic=False, bMatplotlib = bMatplotlib)
+        createBox((x-4-wl,y+h-1), w = wl, h = 2.8, dynamic=False, bMatplotlib = bMatplotlib)
+        createBox((x+4+wl,y+h-1), w = wl, h = 2.8, dynamic=False, bMatplotlib = bMatplotlib)
+
+
 
 
 
@@ -735,8 +830,14 @@ def createCircle(position, r=0.3, dynamic=True, bMatplotlib = True):
         fixtureDef.density = 0
 
     bodyDef.position = position
-    bodyDef.linearDamping = 70
-    bodyDef.angularDamping = 50
+
+    if(abs(world.gravity[1]) > 1):
+        bodyDef.linearDamping = 0.1
+        bodyDef.angularDamping = 0.1
+    else:
+        bodyDef.linearDamping = 70
+        bodyDef.angularDamping = 30
+
     body = world.CreateBody(bodyDef)
     fixture = body.CreateFixture(shape=Box2D.b2CircleShape(radius=r), density=1.0, friction=0.3)
     
@@ -748,24 +849,34 @@ def createCircle(position, r=0.3, dynamic=True, bMatplotlib = True):
 
 
 def createBoxFixture(body, pos = (0,0), width=1.0, height=1.0, dynamic=True, collisionGroup = None):
+    global world
     boxShape = Box2D.b2PolygonShape()
     boxShape.SetAsBox(width, height, pos, 0)    # width, height, position (x,y), angle 
     fixtureDef = Box2D.b2FixtureDef()
     fixtureDef.shape = boxShape
+
     fixtureDef.friction = 0.3
-    
+    if(abs(world.gravity[1]) > 1):
+        fixtureDef.restitution = 0.6
+
     if(collisionGroup!=None): fixtureDef.filter.groupIndex = collisionGroup
     
     if dynamic: fixtureDef.density = 1
     else:       fixtureDef.density = 0            
     return fixtureDef
 
-def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, dynamic=True, damping = 70, collisionGroup = None, bMatplotlib = True):
+def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, dynamic=True, damping = 0, collisionGroup = None, bMatplotlib = True):
     global world, ax
     bodyDef = Box2D.b2BodyDef()
     bodyDef.position = position
-    bodyDef.linearDamping = damping
-    bodyDef.angularDamping = 50
+
+    if(abs(world.gravity[1]) > 1):
+        bodyDef.linearDamping = damping
+        bodyDef.angularDamping = 0
+    else:
+        bodyDef.linearDamping = 70
+        bodyDef.angularDamping = 50
+
     if dynamic: bodyDef.type = Box2D.b2_dynamicBody
     else:       bodyDef.type = Box2D.b2_staticBody
     body = world.CreateBody(bodyDef)

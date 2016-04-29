@@ -18,12 +18,8 @@ surfarray.use_arraytype('numpy')
 pygame.display.set_caption('Arm Simulation Learning')
 clock=pygame.time.Clock()
 
-exp = Box2DWorld.ExpSetupNao(obj_type="box", salientMode = "minimum", debug = True, name ="human")
-exp.setObjPos()
-nao = exp.nao
-obj = exp.obj
-
-dm = np.array([1,1,1])
+dm = 10
+exp = Box2DWorld.ExpSetupDualCartPole(debug = True)
 
 running=True
 while running:
@@ -31,12 +27,10 @@ while running:
     for event in pygame.event.get():
         if(event.type!=KEYDOWN): continue
 
-        if(event.key== pygame.K_LEFT): nao.arms[0].deltaMotor(dm)
-        if(event.key== pygame.K_RIGHT): nao.arms[0].deltaMotor(-dm)
-        if(event.key== pygame.K_UP): nao.arms[1].deltaMotor(dm)
-        if(event.key== pygame.K_DOWN): nao.arms[1].deltaMotor(-dm)
+        if(event.key== pygame.K_LEFT): exp.cart.deltaMotor(dm)
+        if(event.key== pygame.K_RIGHT): exp.cart.deltaMotor(-dm)
 
-        if(event.key== pygame.K_SPACE): exp.setObjPos()
+        #if(event.key== pygame.K_SPACE): exp.setObjPos()
 
         if event.type==QUIT or event.key==K_ESCAPE:
             # The user closed the window or pressed escape
@@ -44,14 +38,13 @@ while running:
 
     screen.fill((0,0,0,0))
 
-    PyGameUtils.draw_contacts(screen,exp)
+    #PyGameUtils.draw_contacts(screen,exp)
     PyGameUtils.draw_world(screen)
-    PyGameUtils.my_draw_line(screen, exp.getObjLine() )
-   
+    
     Box2DWorld.step()
-    exp.update()
+    #exp.update()
 
-    PyGameUtils.draw_salient(screen, exp)
+    #PyGameUtils.draw_salient(screen, exp)
 
     pygame.display.flip()              # Flip the screen and try to keep at the target FPS
     clock.tick(Box2DWorld.TARGET_FPS)

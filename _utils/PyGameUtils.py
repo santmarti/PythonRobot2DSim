@@ -1,5 +1,6 @@
 import pygame
 import pygame.surfarray as surfarray
+import math
 
 import numpy as np
 import Box2D # The main library
@@ -13,6 +14,20 @@ Y0 = SCREEN_HEIGHT/5 # not used for the moment
 PPM = 65 # pixel size only for pygame
 
 colors = {staticBody:(255,255,235,235), dynamicBody:(127,127,127,190)}
+
+def vrotate(v, angle, anchor=[0,0]):
+    """Rotate a vector `v` by the given angle, relative to the anchor point."""
+    x, y = v
+    x = x - anchor[0]
+    y = y - anchor[1]
+    cos_theta = math.cos(angle)
+    sin_theta = math.sin(angle)
+    nx = x*cos_theta - y*sin_theta
+    ny = x*sin_theta + y*cos_theta
+    nx = nx + anchor[0]
+    ny = ny + anchor[1]
+    return [nx, ny]
+
 
 # ****************************************************************************     
 # ----  OSC receiving
@@ -60,15 +75,21 @@ def draw_circle(screen, position=(0,0), radius = 1, color=(27,200,7,190), width=
 def box2d_draw_mycircle(screen, pos, radius, color):
     draw_circle(screen, (pos[0]*PPM,pos[1]*PPM), radius=int(radius*PPM), color=color)
 
-def box2d_draw_circle(screen, circle, body, fixture, color=[], width=3):
+def box2d_draw_circle(screen, circle, body, fixture, color=[], width=3, iswheel=False):
     if(len(color)==0): color = colors[body.type]
+    r = circle.radius
+    pos=body.transform*circle.pos
     position=body.transform*circle.pos*PPM
-    draw_circle(screen, position, radius=int(circle.radius*PPM), color=color, width=width)
+    draw_circle(screen, position, radius=int(r*PPM), color=color, width=width)
+    if(iswheel):
+        for a in [0,2*np.pi/3,4*np.pi/3]:
+            v = vrotate((1,0),body.angle+a) 
+            my_draw_line(screen, [pos, pos+[0.99*r*v[0],0.99*r*v[1]]], color=color, width=width)
 
 
-def my_draw_line(screen, points, color = (10,80,40,10)):
+def my_draw_line(screen, points, color = (10,80,40,10), width=1):
     vertices=[(X0+PPM * v[0], -Y0+SCREEN_HEIGHT - PPM * v[1]) for v in points]
-    pygame.draw.line(screen, color, vertices[0],vertices[1])
+    pygame.draw.line(screen, color, vertices[0], vertices[1], width)
 
 def draw_contacts(screen, exp):
     for c in exp.obj.contacts:
@@ -100,7 +121,7 @@ def draw_world(screen):
         for fixture in body.fixtures:
             shape = fixture.shape
             if(body.active):
-                if(isinstance(shape,Box2D.b2CircleShape)): box2d_draw_circle(screen, shape, body, fixture)
+                if(isinstance(shape,Box2D.b2CircleShape)): box2d_draw_circle(screen, shape, body, fixture, iswheel=True)
                 if(isinstance(shape,Box2D.b2PolygonShape)): box2d_draw_polygon(screen, shape, body, fixture)
             else:
                 if(isinstance(shape,Box2D.b2CircleShape)): box2d_draw_circle(screen, shape, body, fixture, color=(0,90,10), width=1)

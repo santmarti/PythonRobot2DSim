@@ -20,13 +20,14 @@ def savefig(fig,ax,name='img.png'):
     extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
     fig.savefig(name, dpi=300, format='png',bbox_inches=extent)
 
-def makeFigure(axes = []):
+def makeFigure(axes = [], size=[]):
     global x_lim,y_lim
     if(len(axes)>0): 
         x_lim,y_lim=(axes[0],axes[1]),(axes[2],axes[3])
 
     plt.close()
-    fig = plt.figure()
+    if(len(size)>0): fig = plt.figure(figsize=size)
+    else: fig = plt.figure()
     ax = plt.axes(xlim=x_lim,ylim=y_lim)
     ax.set_aspect('equal')
     return fig,ax
