@@ -27,10 +27,12 @@ while running:
     for event in pygame.event.get():
         if(event.type!=KEYDOWN): continue
 
-        if(event.key== pygame.K_LEFT): exp.cart.deltaMotor(dm)
-        if(event.key== pygame.K_RIGHT): exp.cart.deltaMotor(-dm)
+        if(event.key== pygame.K_LEFT): exp.setMotorSpeed(0,dm)
+        if(event.key== pygame.K_RIGHT): exp.setMotorSpeed(0,-dm)
+        if(event.key== pygame.K_UP): exp.setMotorSpeed(1,dm)
+        if(event.key== pygame.K_DOWN): exp.setMotorSpeed(1,-dm)
 
-        #if(event.key== pygame.K_SPACE): exp.setObjPos()
+        if(event.key== pygame.K_SPACE): exp.resetPosition()
 
         if event.type==QUIT or event.key==K_ESCAPE:
             # The user closed the window or pressed escape

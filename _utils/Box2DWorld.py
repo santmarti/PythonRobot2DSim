@@ -8,7 +8,7 @@ from matplotlib.collections import PolyCollection
 import itertools
 import math
 import VectorFigUtils 
-from VectorFigUtils import drawBox, drawCircle, makeFigure, vnorm, dist, vangleSign, computePointsAngle
+from VectorFigUtils import drawBox, drawCircle, makeFigure, vnorm, vrotate, dist, vangleSign, computePointsAngle
 
 start_time = time.time()
 world = Box2D.b2World(gravity=[0.0, -0.001]) # normal gravity -9.8
@@ -40,6 +40,17 @@ def makeFigureWorld(pos=[], angle=None):
     if(len(pos)>0 and angle != None): plotSensoryState(ax,pos,angle)
     plotWorld(ax)
     return fig,ax
+
+def drawWheel(ax,shape,body):
+    r = shape.radius
+    pos = body.transform*shape.pos
+    drawCircle(ax,pos,r)
+    for a in [0,2*np.pi/3,4*np.pi/3]:
+        v = vrotate((1,0),body.angle+a) 
+        x = [pos[0],pos[0]+0.99*r*v[0]]
+        y = [pos[1],pos[1]+0.99*r*v[1]]
+        ax.plot(x,y, linestyle='-', color='b', lw=1)
+
 
 def plotVectors(ax, centers, specials=[], dirs = [], label='_', cradius=0.1, ccolor='r'):
     for i,p in enumerate(centers):
@@ -73,7 +84,7 @@ def plotWorld(ax, alpha=0.3, nao=None, obj=None, bDrawGround=False, color='b', c
                     if(fixture.density == 0.0): drawBox2D(ax,body,fixture,color=color,alpha=0.25)
                     else:                       drawBox2D(ax,body,fixture,color=color,alpha=alpha)    
                 if(isinstance(shape,Box2D.b2CircleShape)): 
-                    drawCircle(ax,body.position,0.3)
+                    drawWheel(ax,shape,body)
             else:  
                 if(isinstance(shape,Box2D.b2PolygonShape)): drawBox2D(ax,body,fixture,color=color,alpha=0.25,fill=False,linestyle='dashed')
                 if(isinstance(shape,Box2D.b2CircleShape)):  drawCircle(ax,body.position,0.3,fill=False,linestyle='dashed')
@@ -726,20 +737,32 @@ class ExpSetupNao:
 # Arm class of any parts and adding a joint extra hand if wanted
        
 class CartPole:
-    size_history  = 50
 
     def __init__(self, position=(0,0), name="simple", bMatplotlib = False, length = 1, bHand = False, collisionGroup=None):
         global bDebug
         self.name = name
-        self.pos = position
-        self.salientMode = "all"
- 
-        circle = createCircle(position, r=0.6, dynamic=True, bMatplotlib = True)
-        box = createBox( (0,1.9), 0.2, 2, dynamic=True, collisionGroup=-1)
-        self.joint = myCreateRevoluteJoint(circle,box,(0,0),iswheel=True)    
+        self.ini_pos = position
+        self.salientMode = "all" 
+        self.circle = createCircle(position, r=0.6, dynamic=True, bMatplotlib = True)
+        self.box = createBox( (position[0],position[1]+1.9), 0.2, 2, dynamic=True)
+        self.joint = myCreateRevoluteJoint(self.circle,self.box,position,iswheel=True)    
 
-    def deltaMotor(self,df):
-        self.joint.motorSpeed = df
+    def resetPosition(self):
+        ipos = self.ini_pos
+        self.joint.motorSpeed = 0
+        self.box.linearVelocity = [0,0]
+        self.box.angularVelocity = 0
+        self.box.angle = 0
+        self.box.position = (ipos[0],ipos[1]+1.9)
+
+        self.circle.linearVelocity = [0,0]
+        self.circle.angularVelocity = 0
+        self.circle.angle = 0
+        self.circle.position = (ipos[0],ipos[1])
+
+
+    def setMotorSpeed(self,speed):
+        self.joint.motorSpeed = speed
 
 # *****************************************************************
 # Experimental Setup Class : Dual CartPole holding object
@@ -758,13 +781,11 @@ class ExpSetupDualCartPole:
         #world = Box2D.b2World(gravity=[0.0, -10])
         world.gravity = Box2D.b2Vec2(0,-980) 
 
-
         self.name = name
         self.salient = []
 
         self.addWalls([0,0])
-        self.cart = CartPole()
-        self.cart.deltaMotor(0.1)
+        self.carts = [CartPole(position=(-2,0)), CartPole(position=(2,0))]
         
         if(bSelfCollisions): collisionGroup=None
         else: collisionGroup=-1
@@ -782,8 +803,12 @@ class ExpSetupDualCartPole:
         createBox((x-4-wl,y+h-1), w = wl, h = 2.8, dynamic=False, bMatplotlib = bMatplotlib)
         createBox((x+4+wl,y+h-1), w = wl, h = 2.8, dynamic=False, bMatplotlib = bMatplotlib)
 
+    def setMotorSpeed(self,i,speed):
+        self.carts[i].setMotorSpeed(speed)
 
-
+    def resetPosition(self):
+        for i in [0,1]:
+            self.carts[i].resetPosition()
 
 
 
