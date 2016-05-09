@@ -137,6 +137,163 @@ def myCreateRevoluteJoint(bodyA,bodyB,anchor,lowerAngle = -0.7 * np.pi, upperAng
                 )
 
 
+# ********************************************
+# Basic Creation Box2D Functions that can use the global figure to plot
+fig,ax = None,None
+
+def createGlobalFigure():
+    global fig,ax
+    if(fig == None):
+        plt.ioff()
+        fig = plt.figure()
+        ax = plt.axes(xlim=VectorFigUtils.x_lim, ylim=VectorFigUtils.y_lim)
+
+def createGround(position=[0,-20], bMatplotlib = True):
+    global world, fig, ax
+    groundBodyDef = Box2D.b2BodyDef()
+    groundBodyDef.position = Box2D.b2Vec2(0,-20)   
+    groundBody = world.CreateBody(groundBodyDef)
+
+    groundBox = Box2D.b2PolygonShape()
+    groundBox.SetAsBox(100, 10)
+    fixture = groundBody.CreateFixturesFromShapes(groundBox)
+    
+    if(bMatplotlib):
+        createGlobalFigure()
+        shape = fixture.shape
+        vertices=[groundBody.transform*v for v in shape.vertices]
+        poly = plt.Polygon(vertices, lw=5, edgecolor='b')
+        ax.add_patch( poly )
+
+    return groundBody
+
+def createCircle(position, r=0.3, dynamic=True, bMatplotlib = True):
+    global world, fig, ax
+    bodyDef = Box2D.b2BodyDef()
+    fixtureDef = Box2D.b2FixtureDef()
+    if dynamic:
+        bodyDef.type = Box2D.b2_dynamicBody
+        fixtureDef.density = 1
+    else:
+        bodyDef.type = Box2D.b2_staticBody
+        fixtureDef.density = 0
+
+    bodyDef.position = position
+
+    if(abs(world.gravity[1]) > 1):
+        bodyDef.linearDamping = 0.1
+        bodyDef.angularDamping = 0.1
+    else:
+        bodyDef.linearDamping = 70
+        bodyDef.angularDamping = 30
+
+    body = world.CreateBody(bodyDef)
+    fixture = body.CreateFixture(shape=Box2D.b2CircleShape(radius=r), density=1.0, friction=0.3)
+    
+    if(bMatplotlib): 
+        createGlobalFigure()
+        fixture.userData = drawCircle(ax,position,r)
+    
+    return body
+
+
+def createBoxFixture(body, pos = (0,0), width=1.0, height=1.0, dynamic=True, collisionGroup = None):
+    global world
+    boxShape = Box2D.b2PolygonShape()
+    boxShape.SetAsBox(width, height, pos, 0)    # width, height, position (x,y), angle 
+    fixtureDef = Box2D.b2FixtureDef()
+    fixtureDef.shape = boxShape
+
+    fixtureDef.friction = 0.3
+    if(abs(world.gravity[1]) > 1):
+        fixtureDef.restitution = 0.6
+
+    if(collisionGroup!=None): fixtureDef.filter.groupIndex = collisionGroup
+    
+    if dynamic: fixtureDef.density = 1
+    else:       fixtureDef.density = 0            
+    return fixtureDef
+
+def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, dynamic=True, damping = 0, collisionGroup = None, bMatplotlib = True):
+    global world, ax
+    bodyDef = Box2D.b2BodyDef()
+    bodyDef.position = position
+
+    if(abs(world.gravity[1]) > 1):
+        bodyDef.linearDamping = damping
+        bodyDef.angularDamping = 0
+    else:
+        bodyDef.linearDamping = 70
+        bodyDef.angularDamping = 50
+
+    if dynamic: bodyDef.type = Box2D.b2_dynamicBody
+    else:       bodyDef.type = Box2D.b2_staticBody
+    body = world.CreateBody(bodyDef)
+
+    dw = w / float(wdiv)
+    dh = h / float(hdiv)
+
+    for i in range(hdiv):
+        for j in range(wdiv):
+            x = 2*j*dw + (1-wdiv)*dw
+            y = 2*i*dh + (1-hdiv)*dh
+            fixtureDef = createBoxFixture(body, (x,y), width=dw, height=dh, collisionGroup = collisionGroup)
+            fixture = body.CreateFixture(fixtureDef)
+            if(bMatplotlib): 
+                createGlobalFigure()
+                fixture.userData = drawBox2D(ax,body,fixture)
+    return body
+
+
+def createTri(position, r=0.3, dynamic=True, bMatplotlib = True):
+    global world, fig, ax
+    bodyDef = Box2D.b2BodyDef()
+    fixtureDef = Box2D.b2FixtureDef()
+    if dynamic:
+        bodyDef.type = Box2D.b2_dynamicBody
+        fixtureDef.density = 1
+    else:
+        bodyDef.type = Box2D.b2_staticBody
+        fixtureDef.density = 0
+
+    bodyDef.position = position
+    bodyDef.linearDamping = 70
+    bodyDef.angularDamping = 50
+    body = world.CreateBody(bodyDef)
+    v = [(-r,-r),(0,r),(r,-r)]
+    fixture = body.CreateFixture(shape=Box2D.b2PolygonShape(vertices=v), density=1.0, friction=0.3)
+    
+    if(bMatplotlib): 
+        createGlobalFigure()
+        fixture.userData = drawTri(ax,position,r)
+    
+    return body
+
+
+
+def init():
+    circles, = ax.plot([], [], 'bo', ms=5)
+    lines, = ax.plot([], [], '-', lw=2)
+    lines.set_data([], [])
+    circles.set_data([], [])
+    return lines, circles
+
+def frameWorld(i):      # animation function.  This is called sequentially
+    global world, TIME_STEP, vel_iters, pos_iters, ax, fig
+                
+    plotWorld(ax,nao)
+                                                 
+    if(arm): arm.update()
+    world.Step(TIME_STEP, vel_iters, pos_iters)
+    world.ClearForces()
+    return []
+
+def animateWorld():
+    global world, fig, ax
+    createGlobalFigure()
+    anim = animation.FuncAnimation(fig, frameWorld, init_func=init,frames=150, interval=20, blit=True)
+    return anim
+    
 def createArm(position = (0,0), nparts = 4, name="simple", bMatplotlib = True, collisionGroup = None, length = 1, bHand = False, hdiv = 1, bLateralize = 0, bShrink = False):
     global world
     jointList = []
@@ -732,13 +889,12 @@ class ExpSetupNao:
         return self.nao.deltaMotor(dm)
 
 
-
 # *****************************************************************
 # Arm class of any parts and adding a joint extra hand if wanted
        
 class CartPole:
 
-    def __init__(self, position=(0,0), name="simple", bMatplotlib = False, length = 1, bHand = False, collisionGroup=None):
+    def __init__(self, position=(0,0), name="simple", bMatplotlib = False, length = 1, bHand = 0, collisionGroup=None):
         global bDebug
         self.name = name
         self.ini_pos = position
@@ -746,6 +902,16 @@ class CartPole:
         self.circle = createCircle(position, r=0.6, dynamic=True, bMatplotlib = True)
         self.box = createBox( (position[0],position[1]+1.9), 0.2, 2, dynamic=True)
         self.joint = myCreateRevoluteJoint(self.circle,self.box,position,iswheel=True)    
+
+        if(bHand>0): 
+            body = self.box
+            h = 0.15
+            w = 0.4
+            pos = (2*w-0.2,0)
+            if(bHand == 2): pos = (-2*w+0.2,0)
+            fixtureDef = createBoxFixture(body, pos, width=w, height=h, collisionGroup = collisionGroup)
+            fixture = body.CreateFixture(fixtureDef)
+
 
     def resetPosition(self):
         ipos = self.ini_pos
@@ -760,9 +926,15 @@ class CartPole:
         self.circle.angle = 0
         self.circle.position = (ipos[0],ipos[1])
 
-
     def setMotorSpeed(self,speed):
         self.joint.motorSpeed = speed
+
+    def getAngle(self):
+        return self.box.angle
+
+    def getPosition(self):
+        return self.box.position[0]
+
 
 # *****************************************************************
 # Experimental Setup Class : Dual CartPole holding object
@@ -772,7 +944,7 @@ class ExpSetupDualCartPole:
 
     max_motor_speed = 30
 
-    def __init__(self, salientMode = "center", name="simple", debug = False, bSelfCollisions=True):
+    def __init__(self, salientMode = "center", name="simple", debug = False, bLink = 1, bSelfCollisions=True):
         global world, bDebug
         bDebug = debug        
         print "-------------------------------------------------"
@@ -785,8 +957,11 @@ class ExpSetupDualCartPole:
         self.salient = []
 
         self.addWalls([0,0])
-        self.carts = [CartPole(position=(-2,0)), CartPole(position=(2,0))]
+        self.carts = [CartPole(position=(-2,0),bHand=1), CartPole(position=(2,0),bHand=2)]
         
+        if(bLink == 1): 
+            self.link = createBox( (0,3), 1.5, 0.15, dynamic=True)
+
         if(bSelfCollisions): collisionGroup=None
         else: collisionGroup=-1
       
@@ -807,168 +982,18 @@ class ExpSetupDualCartPole:
         self.carts[i].setMotorSpeed(speed)
 
     def resetPosition(self):
+        self.ikea.linearVelocity = [0,0]
+        self.ikea.angularVelocity = 0
+        self.ikea.angle = 0
+        self.ikea.position = (0,3)
         for i in [0,1]:
             self.carts[i].resetPosition()
 
+    def getAngles(self):
+        return [cart.getAngle() for cart in self.carts]
 
-
-
-# ********************************************
-# Basic Creation Box2D Functions that can use the global figure to plot
-fig,ax = None,None
-
-def createGlobalFigure():
-    global fig,ax
-    if(fig == None):
-        plt.ioff()
-        fig = plt.figure()
-        ax = plt.axes(xlim=VectorFigUtils.x_lim, ylim=VectorFigUtils.y_lim)
-
-def createGround(position=[0,-20], bMatplotlib = True):
-    global world, fig, ax
-    groundBodyDef = Box2D.b2BodyDef()
-    groundBodyDef.position = Box2D.b2Vec2(0,-20)   
-    groundBody = world.CreateBody(groundBodyDef)
-
-    groundBox = Box2D.b2PolygonShape()
-    groundBox.SetAsBox(100, 10)
-    fixture = groundBody.CreateFixturesFromShapes(groundBox)
-    
-    if(bMatplotlib):
-        createGlobalFigure()
-        shape = fixture.shape
-        vertices=[groundBody.transform*v for v in shape.vertices]
-        poly = plt.Polygon(vertices, lw=5, edgecolor='b')
-        ax.add_patch( poly )
-
-    return groundBody
-
-def createCircle(position, r=0.3, dynamic=True, bMatplotlib = True):
-    global world, fig, ax
-    bodyDef = Box2D.b2BodyDef()
-    fixtureDef = Box2D.b2FixtureDef()
-    if dynamic:
-        bodyDef.type = Box2D.b2_dynamicBody
-        fixtureDef.density = 1
-    else:
-        bodyDef.type = Box2D.b2_staticBody
-        fixtureDef.density = 0
-
-    bodyDef.position = position
-
-    if(abs(world.gravity[1]) > 1):
-        bodyDef.linearDamping = 0.1
-        bodyDef.angularDamping = 0.1
-    else:
-        bodyDef.linearDamping = 70
-        bodyDef.angularDamping = 30
-
-    body = world.CreateBody(bodyDef)
-    fixture = body.CreateFixture(shape=Box2D.b2CircleShape(radius=r), density=1.0, friction=0.3)
-    
-    if(bMatplotlib): 
-        createGlobalFigure()
-        fixture.userData = drawCircle(ax,position,r)
-    
-    return body
-
-
-def createBoxFixture(body, pos = (0,0), width=1.0, height=1.0, dynamic=True, collisionGroup = None):
-    global world
-    boxShape = Box2D.b2PolygonShape()
-    boxShape.SetAsBox(width, height, pos, 0)    # width, height, position (x,y), angle 
-    fixtureDef = Box2D.b2FixtureDef()
-    fixtureDef.shape = boxShape
-
-    fixtureDef.friction = 0.3
-    if(abs(world.gravity[1]) > 1):
-        fixtureDef.restitution = 0.6
-
-    if(collisionGroup!=None): fixtureDef.filter.groupIndex = collisionGroup
-    
-    if dynamic: fixtureDef.density = 1
-    else:       fixtureDef.density = 0            
-    return fixtureDef
-
-def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, dynamic=True, damping = 0, collisionGroup = None, bMatplotlib = True):
-    global world, ax
-    bodyDef = Box2D.b2BodyDef()
-    bodyDef.position = position
-
-    if(abs(world.gravity[1]) > 1):
-        bodyDef.linearDamping = damping
-        bodyDef.angularDamping = 0
-    else:
-        bodyDef.linearDamping = 70
-        bodyDef.angularDamping = 50
-
-    if dynamic: bodyDef.type = Box2D.b2_dynamicBody
-    else:       bodyDef.type = Box2D.b2_staticBody
-    body = world.CreateBody(bodyDef)
-
-    dw = w / float(wdiv)
-    dh = h / float(hdiv)
-
-    for i in range(hdiv):
-        for j in range(wdiv):
-            x = 2*j*dw + (1-wdiv)*dw
-            y = 2*i*dh + (1-hdiv)*dh
-            fixtureDef = createBoxFixture(body, (x,y), width=dw, height=dh, collisionGroup = collisionGroup)
-            fixture = body.CreateFixture(fixtureDef)
-            if(bMatplotlib): 
-                createGlobalFigure()
-                fixture.userData = drawBox2D(ax,body,fixture)
-    return body
-
-
-def createTri(position, r=0.3, dynamic=True, bMatplotlib = True):
-    global world, fig, ax
-    bodyDef = Box2D.b2BodyDef()
-    fixtureDef = Box2D.b2FixtureDef()
-    if dynamic:
-        bodyDef.type = Box2D.b2_dynamicBody
-        fixtureDef.density = 1
-    else:
-        bodyDef.type = Box2D.b2_staticBody
-        fixtureDef.density = 0
-
-    bodyDef.position = position
-    bodyDef.linearDamping = 70
-    bodyDef.angularDamping = 50
-    body = world.CreateBody(bodyDef)
-    v = [(-r,-r),(0,r),(r,-r)]
-    fixture = body.CreateFixture(shape=Box2D.b2PolygonShape(vertices=v), density=1.0, friction=0.3)
-    
-    if(bMatplotlib): 
-        createGlobalFigure()
-        fixture.userData = drawTri(ax,position,r)
-    
-    return body
-
-
-
-def init():
-    circles, = ax.plot([], [], 'bo', ms=5)
-    lines, = ax.plot([], [], '-', lw=2)
-    lines.set_data([], [])
-    circles.set_data([], [])
-    return lines, circles
-
-def frameWorld(i):      # animation function.  This is called sequentially
-    global world, TIME_STEP, vel_iters, pos_iters, ax, fig
-                
-    plotWorld(ax,nao)
-                                                 
-    if(arm): arm.update()
-    world.Step(TIME_STEP, vel_iters, pos_iters)
-    world.ClearForces()
-    return []
-
-def animateWorld():
-    global world, fig, ax
-    createGlobalFigure()
-    anim = animation.FuncAnimation(fig, frameWorld, init_func=init,frames=150, interval=20, blit=True)
-    return anim
+    def getPositions(self):
+        return [cart.getPosition() for cart in self.carts]
 
 
 
