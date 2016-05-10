@@ -982,10 +982,10 @@ class ExpSetupDualCartPole:
         self.carts[i].setMotorSpeed(speed)
 
     def resetPosition(self):
-        self.ikea.linearVelocity = [0,0]
-        self.ikea.angularVelocity = 0
-        self.ikea.angle = 0
-        self.ikea.position = (0,3)
+        self.link.linearVelocity = [0,0]
+        self.link.angularVelocity = 0
+        self.link.angle = 0
+        self.link.position = (0,3)
         for i in [0,1]:
             self.carts[i].resetPosition()
 
