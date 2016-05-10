@@ -902,6 +902,7 @@ class CartPole:
         self.circle = createCircle(position, r=0.6, dynamic=True, bMatplotlib = True)
         self.box = createBox( (position[0],position[1]+1.9), 0.2, 2, dynamic=True)
         self.joint = myCreateRevoluteJoint(self.circle,self.box,position,iswheel=True)    
+        self.bHand = bHand
 
         if(bHand>0): 
             body = self.box
@@ -911,7 +912,6 @@ class CartPole:
             if(bHand == 2): pos = (-2*w+0.2,0)
             fixtureDef = createBoxFixture(body, pos, width=w, height=h, collisionGroup = collisionGroup)
             fixture = body.CreateFixture(fixtureDef)
-
 
     def resetPosition(self):
         ipos = self.ini_pos
@@ -925,6 +925,28 @@ class CartPole:
         self.circle.angularVelocity = 0
         self.circle.angle = 0
         self.circle.position = (ipos[0],ipos[1])
+
+    def getBodyPos(self):
+        body = self.box
+        shape = body.fixtures[1].shape
+        verticesHand=[body.transform*v for v in shape.vertices]
+
+        shape = body.fixtures[0].shape
+        vertices=[body.transform*v for v in shape.vertices]
+
+        if(self.bHand == 2): 
+            d = vertices[2] - vertices[1]
+            d = (d[0]/12.,d[1]/12.)
+            p = (verticesHand[1] + verticesHand[2])/2.0 + d 
+        else: 
+            d = vertices[2] - vertices[1]
+            d = (d[0]/12.,d[1]/12.)
+            p = (verticesHand[3] + verticesHand[0])/2.0 + d
+
+        ret = [p[0], p[1]]
+        ret = [round(e,2) for e in ret]
+        return ret
+
 
     def setMotorSpeed(self,speed):
         self.joint.motorSpeed = speed
@@ -955,7 +977,7 @@ class ExpSetupDualCartPole:
 
         self.name = name
         self.salient = []
-
+        self.haptic = [0.1]*10
         self.addWalls([0,0])
         self.carts = [CartPole(position=(-2,0),bHand=1), CartPole(position=(2,0),bHand=2)]
         
@@ -977,6 +999,20 @@ class ExpSetupDualCartPole:
         #createBox((x,y+5), w = 3, h = wl, dynamic=False, bMatplotlib = bMatplotlib)
         createBox((x-4-wl,y+h-1), w = wl, h = 2.8, dynamic=False, bMatplotlib = bMatplotlib)
         createBox((x+4+wl,y+h-1), w = wl, h = 2.8, dynamic=False, bMatplotlib = bMatplotlib)
+
+    def getSalient(self):
+        return [cart.getBodyPos() for cart in self.carts]
+
+    def getLinkExtreme(self,i):
+        body = self.link
+        shape = body.fixtures[0].shape
+        vertices=[body.transform*v for v in shape.vertices]
+        if(i==0): pos=(vertices[0]+vertices[3])/2
+        else: pos=(vertices[1]+vertices[2])/2
+        return pos
+
+    def getLinkDistance(self,i):
+        return dist(self.getSalient()[i],self.getLinkExtreme(i))
 
     def setMotorSpeed(self,i,speed):
         self.carts[i].setMotorSpeed(speed)

@@ -46,7 +46,10 @@ while running:
     Box2DWorld.step()
     #exp.update()
 
-    #PyGameUtils.draw_salient(screen, exp)
+    PyGameUtils.draw_salient(screen, exp)
+
+    PyGameUtils.my_draw_line(screen,[exp.getSalient()[0],exp.getLinkExtreme(0)])
+    PyGameUtils.my_draw_line(screen,[exp.getSalient()[1],exp.getLinkExtreme(1)])
 
     pygame.display.flip()              # Flip the screen and try to keep at the target FPS
     clock.tick(Box2DWorld.TARGET_FPS)
