@@ -894,22 +894,22 @@ class ExpSetupNao:
        
 class CartPole:
 
-    def __init__(self, position=(0,0), name="simple", bMatplotlib = False, length = 1, bHand = 0, collisionGroup=None):
+    def __init__(self, position=(0,0), name="simple", bMatplotlib = False, d = 1, bHand = 0, collisionGroup=None):
         global bDebug
         self.name = name
         self.ini_pos = position
-        self.salientMode = "all" 
-        self.circle = createCircle(position, r=0.6, dynamic=True, bMatplotlib = True)
-        self.box = createBox( (position[0],position[1]+1.9), 0.2, 2, dynamic=True)
+        self.salientMode = "all"
+        self.circle = createCircle(position, r=d*0.6, dynamic=True, bMatplotlib = True)
+        self.box = createBox( (position[0],position[1]+d*1.9), d*0.2, d*2, dynamic=True)
         self.joint = myCreateRevoluteJoint(self.circle,self.box,position,iswheel=True)    
         self.bHand = bHand
 
         if(bHand>0): 
             body = self.box
-            h = 0.15
-            w = 0.4
-            pos = (2*w-0.2,0)
-            if(bHand == 2): pos = (-2*w+0.2,0)
+            h = d*0.15
+            w = d*0.4
+            pos = (2*w-d*0.2,0)
+            if(bHand == 2): pos = (-2*w+d*0.2,0)
             fixtureDef = createBoxFixture(body, pos, width=w, height=h, collisionGroup = collisionGroup)
             fixture = body.CreateFixture(fixtureDef)
 
@@ -966,7 +966,7 @@ class ExpSetupDualCartPole:
 
     max_motor_speed = 30
 
-    def __init__(self, salientMode = "center", name="simple", debug = False, bLink = 1, bSelfCollisions=True):
+    def __init__(self, xshift=0, salientMode = "center", name="simple", debug = False, linkWidth = 0.08, bSelfCollisions=True):
         global world, bDebug
         bDebug = debug        
         print "-------------------------------------------------"
@@ -979,10 +979,12 @@ class ExpSetupDualCartPole:
         self.salient = []
         self.haptic = [0.1]*10
         self.addWalls([0,0])
-        self.carts = [CartPole(position=(-2,0),bHand=1), CartPole(position=(2,0),bHand=2)]
+
+        xpos = 1.5
+        self.carts = [CartPole(position=(-xpos+xshift,0),bHand=1,d=0.8), CartPole(position=(xpos+xshift,0),bHand=2,d=0.8)]
         
-        if(bLink == 1): 
-            self.link = createBox( (0,3), 1.5, 0.15, dynamic=True)
+        if(linkWidth > 0): 
+            self.link = createBox( (xshift,2), xpos*0.8, linkWidth, dynamic=True)
 
         if(bSelfCollisions): collisionGroup=None
         else: collisionGroup=-1
@@ -995,10 +997,11 @@ class ExpSetupDualCartPole:
         x,y = pos 
         wl = 0.2
         h = (5+1)/2.0
-        createBox((x,y-1), w = 4+2*wl, h = wl, dynamic=False, bMatplotlib = bMatplotlib)
+        l = 4.45
+        createBox((x,y-1), w = l+2*wl, h = wl, dynamic=False, bMatplotlib = bMatplotlib)
         #createBox((x,y+5), w = 3, h = wl, dynamic=False, bMatplotlib = bMatplotlib)
-        createBox((x-4-wl,y+h-1), w = wl, h = 2.8, dynamic=False, bMatplotlib = bMatplotlib)
-        createBox((x+4+wl,y+h-1), w = wl, h = 2.8, dynamic=False, bMatplotlib = bMatplotlib)
+        createBox((x-l-wl,y+h-1), w = wl, h = 2.8, dynamic=False, bMatplotlib = bMatplotlib)
+        createBox((x+l+wl,y+h-1), w = wl, h = 2.8, dynamic=False, bMatplotlib = bMatplotlib)
 
     def getSalient(self):
         return [cart.getBodyPos() for cart in self.carts]

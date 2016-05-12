@@ -19,7 +19,7 @@ pygame.display.set_caption('Arm Simulation Learning')
 clock=pygame.time.Clock()
 
 dm = 10
-exp = Box2DWorld.ExpSetupDualCartPole(debug = True)
+exp = Box2DWorld.ExpSetupDualCartPole(debug = True,xshift=-2.1)
 
 running=True
 while running:
