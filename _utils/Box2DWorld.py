@@ -111,6 +111,25 @@ def drawBox2D(ax, body, fixture, alpha = 0.5, color = 'b', fill=True, linestyle=
     poly = drawBox(ax,vertices,alpha=alpha,color=color,fill=fill,linestyle=linestyle)
     return poly
 
+def myCreateLinearJoint(bodyA,bodyB):
+    center = (bodyA.worldCenter + bodyB.worldCenter)/2.0
+    joint = world.CreatePrismaticJoint(
+            bodyA=bodyA, 
+            bodyB=bodyB, 
+            anchor=center,
+            axis = (1,0),
+            enableLimit = True,
+            lowerTranslation = -0.2, 
+            upperTranslation = 0,
+            motorForce = 100,
+            maxMotorForce = 100.0,
+            maxMotorTorque = 100.0,
+            motorSpeed = 100,
+            enableMotor = True,
+            collideConnected = False,
+            )
+    return joint
+
 
 def myCreateRevoluteJoint(bodyA,bodyB,anchor,lowerAngle = -0.7 * np.pi, upperAngle = 0.7 * np.pi,iswheel=False):
     if(not iswheel):
@@ -197,7 +216,7 @@ def createCircle(position, r=0.3, dynamic=True, bMatplotlib = True):
     return body
 
 
-def createBoxFixture(body, pos = (0,0), width=1.0, height=1.0, dynamic=True, collisionGroup = None):
+def createBoxFixture(body, pos = (0,0), width=1.0, height=1.0, dynamic=True, collisionGroup = None, restitution=None):
     global world
     boxShape = Box2D.b2PolygonShape()
     boxShape.SetAsBox(width, height, pos, 0)    # width, height, position (x,y), angle 
@@ -208,13 +227,15 @@ def createBoxFixture(body, pos = (0,0), width=1.0, height=1.0, dynamic=True, col
     if(abs(world.gravity[1]) > 1):
         fixtureDef.restitution = 0.6
 
+    if(restitution != None): fixtureDef.restitution = restitution
+
     if(collisionGroup!=None): fixtureDef.filter.groupIndex = collisionGroup
     
     if dynamic: fixtureDef.density = 1
     else:       fixtureDef.density = 0            
     return fixtureDef
 
-def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, dynamic=True, damping = 0, collisionGroup = None, bMatplotlib = True):
+def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, dynamic=True, damping = 0, collisionGroup = None, bMatplotlib = True, restitution=None):
     global world, ax
     bodyDef = Box2D.b2BodyDef()
     bodyDef.position = position
@@ -237,7 +258,7 @@ def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, dynamic=True, damping 
         for j in range(wdiv):
             x = 2*j*dw + (1-wdiv)*dw
             y = 2*i*dh + (1-hdiv)*dh
-            fixtureDef = createBoxFixture(body, (x,y), width=dw, height=dh, collisionGroup = collisionGroup)
+            fixtureDef = createBoxFixture(body, (x,y), width=dw, height=dh, collisionGroup = collisionGroup, restitution=restitution)
             fixture = body.CreateFixture(fixtureDef)
             if(bMatplotlib): 
                 createGlobalFigure()
@@ -913,9 +934,15 @@ class CartPole:
             fixtureDef = createBoxFixture(body, pos, width=w, height=h, collisionGroup = collisionGroup)
             fixture = body.CreateFixture(fixtureDef)
 
+        self.motor_speed = 0
+        self.angle = 0
+
     def resetPosition(self):
         ipos = self.ini_pos
+        self.motor_speed = 0
+        self.angle = 0
         self.joint.motorSpeed = 0
+        self.joint.torque = 0
         self.box.linearVelocity = [0,0]
         self.box.angularVelocity = 0
         self.box.angle = 0
@@ -948,7 +975,7 @@ class CartPole:
         return ret
 
 
-    def setMotorSpeed(self,speed):
+    def setMotorSpeed(self,speed):  
         self.joint.motorSpeed = speed
 
     def getAngle(self):
@@ -956,6 +983,14 @@ class CartPole:
 
     def getPosition(self):
         return self.box.position[0]
+
+    def getVelocity(self):
+        return self.box.linearVelocity
+
+    def update(self):
+        self.setMotorSpeed( self.motor_speed )
+        self.angle = self.getAngle()
+
 
 
 # *****************************************************************
@@ -966,25 +1001,33 @@ class ExpSetupDualCartPole:
 
     max_motor_speed = 30
 
-    def __init__(self, xshift=0, salientMode = "center", name="simple", debug = False, linkWidth = 0.08, bSelfCollisions=True):
+    def __init__(self, xshift=0, salientMode = "center", name="simple", debug = False, objBetween = 1, objWidth = 0.1, bSelfCollisions=True):
         global world, bDebug
         bDebug = debug        
         print "-------------------------------------------------"
         print "Created Exp Dual Cart Pole Setup ", name, "Debug: ", bDebug
 
         #world = Box2D.b2World(gravity=[0.0, -10])
-        world.gravity = Box2D.b2Vec2(0,-980) 
+        world.gravity = Box2D.b2Vec2(0,-1000) 
 
         self.name = name
         self.salient = []
         self.haptic = [0.1]*10
         self.addWalls([0,0])
-
+        self.xshift = xshift
+        
         xpos = 1.5
         self.carts = [CartPole(position=(-xpos+xshift,0),bHand=1,d=0.8), CartPole(position=(xpos+xshift,0),bHand=2,d=0.8)]
         
-        if(linkWidth > 0): 
-            self.link = createBox( (xshift,2), xpos*0.8, linkWidth, dynamic=True)
+        if(objWidth > 0): 
+            if(objBetween == 2): 
+                self.link = [createBox( (xshift,2), xpos*0.8, objWidth, dynamic=True, restitution = 0.8)]
+            elif(objBetween == 1): 
+                objLong = xpos*0.8 / 2.0
+                bodyA = createBox( (xshift-objLong,2), objLong, objWidth, dynamic=True, restitution = 0.8)
+                bodyB = createBox( (xshift+objLong,2), objLong, objWidth-0.03, dynamic=True, restitution = 0.8)
+                myCreateLinearJoint(bodyA,bodyB)
+                self.link = [bodyA,bodyB]
 
         if(bSelfCollisions): collisionGroup=None
         else: collisionGroup=-1
@@ -1007,11 +1050,16 @@ class ExpSetupDualCartPole:
         return [cart.getBodyPos() for cart in self.carts]
 
     def getLinkExtreme(self,i):
-        body = self.link
-        shape = body.fixtures[0].shape
-        vertices=[body.transform*v for v in shape.vertices]
-        if(i==0): pos=(vertices[0]+vertices[3])/2
-        else: pos=(vertices[1]+vertices[2])/2
+        if(i==0):
+            body = self.link[0]
+            shape = body.fixtures[0].shape
+            vertices=[body.transform*v for v in shape.vertices]
+            pos=(vertices[0]+vertices[3])/2
+        if(i==1):
+            body = self.link[-1]
+            shape = body.fixtures[0].shape
+            vertices=[body.transform*v for v in shape.vertices]
+            pos=(vertices[1]+vertices[2])/2
         return pos
 
     def getLinkDistance(self,i):
@@ -1020,19 +1068,32 @@ class ExpSetupDualCartPole:
     def setMotorSpeed(self,i,speed):
         self.carts[i].setMotorSpeed(speed)
 
-    def resetPosition(self):
-        self.link.linearVelocity = [0,0]
-        self.link.angularVelocity = 0
-        self.link.angle = 0
-        self.link.position = (0,3)
+    def resetPositionBody(self,b):
+        b.linearVelocity = [0,0]
+        b.angularVelocity = 0
+        b.angle = 0
+        b.position = (self.xshift,2)
         for i in [0,1]:
             self.carts[i].resetPosition()
+
+    def resetPosition(self):
+        for b in self.link:
+            self.resetPositionBody(b)
 
     def getAngles(self):
         return [cart.getAngle() for cart in self.carts]
 
     def getPositions(self):
         return [cart.getPosition() for cart in self.carts]
+
+    def getVelocities(self):
+        return [cart.getVelocity()[0] for cart in self.carts]
+
+    def getLinkPos(self):
+        if(len(self.link) == 1):
+            return self.link.position
+        else:
+            return (self.link[0].position + self.link[-1].position)/2.0
 
 
 
