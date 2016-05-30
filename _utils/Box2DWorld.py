@@ -111,7 +111,7 @@ def drawBox2D(ax, body, fixture, alpha = 0.5, color = 'b', fill=True, linestyle=
     poly = drawBox(ax,vertices,alpha=alpha,color=color,fill=fill,linestyle=linestyle)
     return poly
 
-def myCreateLinearJoint(bodyA,bodyB):
+def myCreateLinearJoint(bodyA,bodyB,force=100):
     center = (bodyA.worldCenter + bodyB.worldCenter)/2.0
     joint = world.CreatePrismaticJoint(
             bodyA=bodyA, 
@@ -121,10 +121,8 @@ def myCreateLinearJoint(bodyA,bodyB):
             enableLimit = True,
             lowerTranslation = -0.2, 
             upperTranslation = 0,
-            motorForce = 100,
-            maxMotorForce = 100.0,
-            maxMotorTorque = 100.0,
-            motorSpeed = 100,
+            motorSpeed = force,
+            maxMotorForce = force,
             enableMotor = True,
             collideConnected = False,
             )
@@ -1001,7 +999,7 @@ class ExpSetupDualCartPole:
 
     max_motor_speed = 30
 
-    def __init__(self, xshift=0, salientMode = "center", name="simple", debug = False, objBetween = 1, objWidth = 0.1, bSelfCollisions=True):
+    def __init__(self, xshift=0, salientMode = "center", name="simple", debug = False, objBetween = 1, objWidth = 0.1, objForce=100, bSelfCollisions=True):
         global world, bDebug
         bDebug = debug        
         print "-------------------------------------------------"
@@ -1026,7 +1024,7 @@ class ExpSetupDualCartPole:
                 objLong = xpos*0.8 / 2.0
                 bodyA = createBox( (xshift-objLong,2), objLong, objWidth, dynamic=True, restitution = 0.8)
                 bodyB = createBox( (xshift+objLong,2), objLong, objWidth-0.03, dynamic=True, restitution = 0.8)
-                myCreateLinearJoint(bodyA,bodyB)
+                self.joint = myCreateLinearJoint(bodyA,bodyB,force=objForce)
                 self.link = [bodyA,bodyB]
 
         if(bSelfCollisions): collisionGroup=None
