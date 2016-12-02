@@ -1,8 +1,6 @@
-import pygame
-import pygame.surfarray as surfarray
 import math
-
 import numpy as np
+import pygame
 import Box2D # The main library
 from Box2D.b2 import * # This maps Box2D.b2Vec2 to vec2 (and so on)
 import Box2DWorld
