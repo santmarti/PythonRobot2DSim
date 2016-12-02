@@ -1,11 +1,7 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import animation
-from matplotlib.colors import colorConverter
-from matplotlib.collections import PolyCollection
-import matplotlib as mpl
 import itertools
 import math
+import matplotlib.pyplot as plt
 
 font = {'family' : 'Bitstream Vera Sans',
 #        'weight' : 'bold',
