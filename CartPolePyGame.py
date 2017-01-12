@@ -1,11 +1,11 @@
-import pygame
-from pygame.locals import *
-import pygame.surfarray as surfarray
-import numpy as np
 import sys
 sys.path.append('./_utils/')
+import pygame
+import pygame.surfarray as surfarray
 import PyGameUtils
-import Box2DWorld
+
+import Box2DWorld 
+from ExpRobotSetup import ExpSetupDualCartPole
 
 box2dWH = (PyGameUtils.SCREEN_WIDTH, PyGameUtils.SCREEN_HEIGHT)
 
@@ -19,13 +19,13 @@ pygame.display.set_caption('Arm Simulation Learning')
 clock=pygame.time.Clock()
 
 dm = 10
-exp = Box2DWorld.ExpSetupDualCartPole(debug = True,xshift=-2.1)
+exp = ExpSetupDualCartPole(debug = True,xshift=-2.1)
 
 running=True
 while running:
     # Check the event queue
     for event in pygame.event.get():
-        if(event.type!=KEYDOWN): continue
+        if(event.type!=pygame.KEYDOWN): continue
 
         if(event.key== pygame.K_LEFT): exp.setMotorSpeed(0,dm)
         if(event.key== pygame.K_RIGHT): exp.setMotorSpeed(0,-dm)
@@ -34,7 +34,7 @@ while running:
 
         if(event.key== pygame.K_SPACE): exp.resetPosition()
 
-        if event.type==QUIT or event.key==K_ESCAPE:
+        if event.type==pygame.QUIT or event.key==pygame.K_ESCAPE:
             # The user closed the window or pressed escape
             running=False
 

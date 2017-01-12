@@ -80,14 +80,14 @@ def computePointsAngle(pos,angle):
 def drawCircle(ax,position,r, alpha = 0.4, color = 'b', fill=True, linestyle='solid'):
     lw = 1
     if(linestyle=='dashed'): lw = 3
-    c = plt.Circle(position, radius=r, alpha=alpha, fill=fill, color=color, edgecolor=color,ls=linestyle,linewidth=lw)
+    c = plt.Circle(position, radius=r, alpha=alpha, fill=fill, facecolor=color, edgecolor=color,ls=linestyle,linewidth=lw)
     ax.add_patch( c )
     return c
 
 def drawBox(ax, vertices, alpha = 0.5, color = 'b', fill=True, linestyle='solid'):
     lw = 1
     if(linestyle=='dashed'): lw = 3
-    poly = plt.Polygon(vertices, alpha=alpha, fill=fill, color=color, edgecolor=color, ls=linestyle,linewidth=lw)
+    poly = plt.Polygon(vertices, alpha=alpha, fill=fill, facecolor=color, edgecolor=color, ls=linestyle,linewidth=lw)
     ax.add_patch( poly )
 
 def decorate(xlabel = None, ylabel = None, title = None, xticks = None, mainfont=20, legendfont=12, bLegend = False):

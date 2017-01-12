@@ -1,26 +1,105 @@
+# add -*- coding: utf-8 -*-
+
 import sys
 import time
 import numpy as np
 import Box2D
+import math
 import matplotlib.pyplot as plt
 from matplotlib import animation
 import itertools
 import VectorFigUtils 
 from VectorFigUtils import drawBox, drawCircle, makeFigure, vnorm, vrotate, dist, vangleSign, computePointsAngle
 
+
 # ********************************************
 # World Related Globals
 
 start_time = time.time()
 world = Box2D.b2World(gravity=[0.0, -0.001]) # normal gravity -9.8
+
 arm = None
 nao = None
 ground = 0
-TARGET_FPS=500
-TIME_STEP=1.0/TARGET_FPS
-vel_iters, pos_iters = 40, 40
+TARGET_FPS=500                  # Affects framerate (real max 50) and simulation speed                      
+TIME_STEP=1.0/TARGET_FPS        # as timestep is the inverse of it, setting it to a
+                                # real possible frame rate like 30 makes the sim unfeasible
+vel_iters, pos_iters = 40, 40   # To look also world.Step(TIME_STEP,vel_iters,pos_iters)
 SPEED_JOINT = 14
 bDebug = True
+
+
+# ********************************************
+# Custom Contact Filters
+
+class DefaultContactFilter(Box2D.b2ContactFilter):
+    def __init__(self):
+        Box2D.b2ContactFilter.__init__(self)
+
+    def ShouldCollide(self, shape1, shape2):
+        # Implements the default behavior of b2ContactFilter in Python
+        filter1 = shape1.filterData
+        filter2 = shape2.filterData
+        if filter1.groupIndex == filter2.groupIndex and filter1.groupIndex != 0:
+            return filter1.groupIndex > 0
+        collides = (filter1.maskBits & filter2.categoryBits) != 0 and (filter1.categoryBits & filter2.maskBits) != 0
+        return collides
+
+class CustomContactFilter(Box2D.b2ContactFilter):
+    def __init__(self):
+        Box2D.b2ContactFilter.__init__(self)
+
+    def ShouldCollide(self, shape1, shape2):
+        return 0
+
+def collisions(bOn = True):
+    if(bOn): world.contactFilter = DefaultContactFilter()
+    else: world.contactFilter = CustomContactFilter()
+
+# ********************************************
+# RayCast Collisions : Robots, Epuck
+
+class RayCastCallback(Box2D.b2RayCastCallback):
+
+    def __init__(self, **kwargs):
+        super(RayCastCallback, self).__init__()
+        self.fixture = None
+
+    def ReportFixture(self, fixture, point, normal, fraction):
+        self.fixture = fixture
+        self.point = point
+        self.normal = normal
+        return fraction
+
+class fwQueryCallback(Box2D.b2QueryCallback):
+
+    def __init__(self, p):
+        super(fwQueryCallback, self).__init__()
+        self.point = p
+        self.fixture = None
+
+    def ReportFixture(self, fixture):
+        body = fixture.body
+        if body.type == Box2D.b2_dynamicBody:
+            inside = fixture.TestPoint(self.point)
+            if inside:
+                self.fixture = fixture
+                # We found the object, so stop the query
+                return False
+        # Continue the query
+        return True
+
+def queryPoint(p):
+    aabb = Box2D.b2AABB(lowerBound=(p[0]-0.001, p[1]-0.001),
+                  upperBound=(p[0]+0.001, p[1]+0.001))
+
+    # Query the world for overlapping shapes.
+    query = fwQueryCallback(p)
+    world.QueryAABB(query, aabb)
+
+    if query.fixture:
+        body = query.fixture.body
+
 
 # ********************************************
 # Basic Creation Box2D Functions that can use the global figure to plot
@@ -47,14 +126,22 @@ def plotWorld(ax, alpha=0.3, nao=None, obj=None, bDrawGround=False, color='b', c
         pnao = nao.ini_pos
     #ax.plot([pobj[0],pnao[0]], [pobj[1],pnao[1]], linestyle='--', color='g', lw=2)
     for body in world.bodies:
+        name = body.userData["name"]
         for fixture in body.fixtures:
             shape = fixture.shape
             if(body.active):
                 if(isinstance(shape,Box2D.b2PolygonShape)): 
-                    if(fixture.density == 0.0): drawBox2D(ax,body,fixture,color=color,alpha=0.25)
-                    else:                       drawBox2D(ax,body,fixture,color=color,alpha=alpha)    
+                    if(name == "boxA"): drawBox2D(ax,body,fixture, color='g',alpha=1)
+                    elif(name == "boxB"): drawBox2D(ax,body,fixture, color='r',alpha=1)   
+                    elif(name == "bar"): drawBox2D(ax,body,fixture, color=color,alpha=0.1)                                                
+                    else:
+                        if(fixture.density == 0.0): drawBox2D(ax,body,fixture,color=color,alpha=0.25)
+                        else:                       drawBox2D(ax,body,fixture,color=color,alpha=alpha)    
                 if(isinstance(shape,Box2D.b2CircleShape)): 
-                    drawWheel(ax,shape,body)
+                    if(name == "epuck"): drawEpuck(ax,shape,body)
+                    elif(name == "reward"): drawCircle(ax,body.position,shape.radius,color=[0.5,0.7,0.3])
+                    elif(name == "toy"): drawCircle(ax,body.position,shape.radius)
+                    else: drawWheel(ax,shape,body)
             else:  
                 if(isinstance(shape,Box2D.b2PolygonShape)): drawBox2D(ax,body,fixture,color=color,alpha=0.25,fill=False,linestyle='dashed')
                 if(isinstance(shape,Box2D.b2CircleShape)):  drawCircle(ax,body.position,0.3,fill=False,linestyle='dashed')
@@ -124,6 +211,25 @@ def drawWheel(ax,shape,body):
         y = [pos[1],pos[1]+0.99*r*v[1]]
         ax.plot(x,y, linestyle='-', color='b', lw=1)
 
+def drawEpuck(ax,shape,body):
+    r = shape.radius
+    pos = body.position
+    drawCircle(ax,pos,r)
+    irangles = body.userData["frontIRAngles"]
+    nir = len(irangles)
+    for a in [-np.pi/4,np.pi/4]:
+        v = vrotate((1,0),body.angle+a) 
+        x = [pos[0],pos[0]+0.99*r*v[0]]
+        y = [pos[1],pos[1]+0.99*r*v[1]]
+        ax.plot(x,y, linestyle='-', color='b', lw=1)
+
+    for k in range(nir):
+        v = vrotate((1,0),body.angle + irangles[k])
+        c = pos+[0.97*r*v[0],0.97*r*v[1]]
+        value = body.userData["frontIRValues"][k]
+        if(value > 1): value = 1
+        drawCircle(ax,c,r=0.07,color=[1-value,value,0])
+
 
 def plotVectors(ax, centers, specials=[], dirs = [], label='_', cradius=0.1, ccolor='r'):
     for i,p in enumerate(centers):
@@ -163,7 +269,7 @@ def drawBox2D(ax, body, fixture, alpha = 0.5, color = 'b', fill=True, linestyle=
     poly = drawBox(ax,vertices,alpha=alpha,color=color,fill=fill,linestyle=linestyle)
     return poly
 
-def myCreateLinearJoint(bodyA,bodyB,force=100):
+def myCreateLinearJoint(bodyA,bodyB,force=100,lowerTranslation = -0.2,upperTranslation = 0):
     global world
     center = (bodyA.worldCenter + bodyB.worldCenter)/2.0
     joint = world.CreatePrismaticJoint(
@@ -172,8 +278,8 @@ def myCreateLinearJoint(bodyA,bodyB,force=100):
             anchor=center,
             axis = (1,0),
             enableLimit = True,
-            lowerTranslation = -0.2, 
-            upperTranslation = 0,
+            lowerTranslation = lowerTranslation, 
+            upperTranslation = upperTranslation,
             motorSpeed = force,
             maxMotorForce = force,
             enableMotor = True,
@@ -227,13 +333,13 @@ def createGround(position=[0,-20], bMatplotlib = True):
 
     return groundBody
 
-def createCircle(position, r=0.3, dynamic=True, bMatplotlib = True):
+def createCircle(position, r=0.3, bDynamic=True, density=1, bMatplotlib = True, name=""):
     global world, fig, ax
     bodyDef = Box2D.b2BodyDef()
     fixtureDef = Box2D.b2FixtureDef()
-    if dynamic:
+    if bDynamic:
         bodyDef.type = Box2D.b2_dynamicBody
-        fixtureDef.density = 1
+        fixtureDef.density = density
     else:
         bodyDef.type = Box2D.b2_staticBody
         fixtureDef.density = 0
@@ -248,8 +354,9 @@ def createCircle(position, r=0.3, dynamic=True, bMatplotlib = True):
         bodyDef.angularDamping = 30
 
     body = world.CreateBody(bodyDef)
-    fixture = body.CreateFixture(shape=Box2D.b2CircleShape(radius=r), density=1.0, friction=0.3)
-    
+    fixture = body.CreateFixture(shape=Box2D.b2CircleShape(radius=r), density=1.0, friction=0.3)    
+    body.userData = {"name":name}
+
     if(bMatplotlib): 
         createGlobalFigure()
         fixture.userData = drawCircle(ax,position,r)
@@ -257,7 +364,7 @@ def createCircle(position, r=0.3, dynamic=True, bMatplotlib = True):
     return body
 
 
-def createBoxFixture(body, pos = (0,0), width=1.0, height=1.0, dynamic=True, collisionGroup = None, restitution=None):
+def createBoxFixture(body, pos = (0,0), width=1.0, height=1.0, bDynamic=True, collisionGroup = None, restitution=None):
     global world
     boxShape = Box2D.b2PolygonShape()
     boxShape.SetAsBox(width, height, pos, 0)    # width, height, position (x,y), angle 
@@ -272,11 +379,11 @@ def createBoxFixture(body, pos = (0,0), width=1.0, height=1.0, dynamic=True, col
 
     if(collisionGroup!=None): fixtureDef.filter.groupIndex = collisionGroup
     
-    if dynamic: fixtureDef.density = 1
+    if bDynamic: fixtureDef.density = 1
     else:       fixtureDef.density = 0            
     return fixtureDef
 
-def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, dynamic=True, damping = 0, collisionGroup = None, bMatplotlib = True, restitution=None):
+def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, bDynamic=True, damping = 0, collisionGroup = None, bMatplotlib = True, restitution=None, bCollideNoOne=False, name=""):
     global world
     bodyDef = Box2D.b2BodyDef()
     bodyDef.position = position
@@ -288,9 +395,10 @@ def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, dynamic=True, damping 
         bodyDef.linearDamping = 70
         bodyDef.angularDamping = 50
 
-    if dynamic: bodyDef.type = Box2D.b2_dynamicBody
-    else:       bodyDef.type = Box2D.b2_staticBody
+    if bDynamic: bodyDef.type = Box2D.b2_dynamicBody
+    else:        bodyDef.type = Box2D.b2_staticBody
     body = world.CreateBody(bodyDef)
+    body.userData = {"name":name}
 
     dw = w / float(wdiv)
     dh = h / float(hdiv)
@@ -300,7 +408,10 @@ def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, dynamic=True, damping 
             x = 2*j*dw + (1-wdiv)*dw
             y = 2*i*dh + (1-hdiv)*dh
             fixtureDef = createBoxFixture(body, (x,y), width=dw, height=dh, collisionGroup = collisionGroup, restitution=restitution)
+            if(bCollideNoOne): fixtureDef.filter.maskBits = 0x0000;
             fixture = body.CreateFixture(fixtureDef)
+
+
             if(bMatplotlib): 
                 createGlobalFigure()
                 fixture.userData = drawBox2D(ax,body,fixture)
@@ -324,7 +435,8 @@ def createTri(position, r=0.3, dynamic=True, bMatplotlib = True):
     body = world.CreateBody(bodyDef)
     v = [(-r,-r),(0,r),(r,-r)]
     fixture = body.CreateFixture(shape=Box2D.b2PolygonShape(vertices=v), density=1.0, friction=0.3)
-    
+    body.userData = {"name":"tri"}
+
     if(bMatplotlib): 
         createGlobalFigure()
         fixture.userData = drawTri(ax,position,r)
@@ -332,27 +444,33 @@ def createTri(position, r=0.3, dynamic=True, bMatplotlib = True):
     return body
 
     
-def createArm(position = (0,0), nparts = 4, name="simple", bMatplotlib = True, collisionGroup = None, length = 1, bHand = False, hdiv = 1, bLateralize = 0, bShrink = False):
+def createArm(position = (0,0), nparts = 4, name="simple", bMatplotlib = True, collisionGroup = None, length = 1, bHand = False, hdiv = 1, bLateralize = 0, bShrink = False, signDir=1):
     global world
     jointList = []
     d = 1
     l = length
     lsum = 0
-    prevBody = createBox( position, 0.1, 0.1, hdiv = 1, dynamic=False, collisionGroup=-1)
+    prevBody = createBox( position, 0.1, 0.1, hdiv = 1, bDynamic=False, collisionGroup=-1)
+    prevBody.userData["name"]="armpart"    
+    if(signDir < 0): prevBody.userData["name"]="reversearmpart"    
     for i in range(nparts):
         w = l / 10.0
-        pos = tuple(map(sum,zip(position, (0, d*(l*0.5 + lsum)))))
-        anchor = tuple(map(sum,zip(position, (0, d*lsum))))
+        #pos = tuple(map(sum,zip(position, (0, d*(l*0.5 + lsum)))))
+        #anchor = tuple(map(sum,zip(position, (0, d*lsum))))
+        pos = tuple(map(sum,zip(position, (0, signDir*d*(l*0.5 + lsum)))))
+        anchor = tuple(map(sum,zip(position, (0, signDir*d*lsum))))
 
         if(i==0): box = createBox( pos, w, l*0.5, hdiv = hdiv, collisionGroup=-1 )
         else: box = createBox( pos, w, l*0.5, damping=500, hdiv = hdiv, collisionGroup=collisionGroup)
+        
+        box.userData["name"]="armpart"    
+        if(signDir < 0): box.userData["name"]="reversearmpart"    
 
         if(bLateralize == 0): j = myCreateRevoluteJoint(prevBody,box,anchor)
         elif(bLateralize == 1): 
             if(i == 0):           j = myCreateRevoluteJoint(prevBody,box,anchor,lowerAngle=-0.4 * np.pi,upperAngle=0.4 * np.pi)    
             elif(i == nparts-1):  j = myCreateRevoluteJoint(prevBody,box,anchor,lowerAngle=-0.87 * np.pi,upperAngle=0.2 * np.pi)   # added wrist like + redundancy 
             else:                 j = myCreateRevoluteJoint(prevBody,box,anchor,lowerAngle=-0.87 * np.pi,upperAngle=0)    
-
         elif(bLateralize == 2): 
             if(i == 0):           j = myCreateRevoluteJoint(prevBody,box,anchor,lowerAngle=-0.4 * np.pi,upperAngle=0.4 * np.pi)    
             elif(i == nparts-1):  j = myCreateRevoluteJoint(prevBody,box,anchor,lowerAngle=-0.2 * np.pi,upperAngle=0.87 * np.pi)    
@@ -373,4 +491,18 @@ def createArm(position = (0,0), nparts = 4, name="simple", bMatplotlib = True, c
         
     return jointList
             
+
+
+def vrotate(v, angle, anchor=[0,0]):
+    """Rotate a vector `v` by the given angle, relative to the anchor point."""
+    x, y = v
+    x = x - anchor[0]
+    y = y - anchor[1]
+    cos_theta = math.cos(angle)
+    sin_theta = math.sin(angle)
+    nx = x*cos_theta - y*sin_theta
+    ny = x*sin_theta + y*cos_theta
+    nx = nx + anchor[0]
+    ny = ny + anchor[1]
+    return [nx, ny]
 

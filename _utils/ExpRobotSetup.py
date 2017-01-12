@@ -1,24 +1,230 @@
+import numpy as np
 import Box2D
-from Box2DWorld import world, arm, createBox, createCircle, createTri, createBoxFixture, myCreateRevoluteJoint, myCreateLinearJoint
-from VectorFigUtils import vnorm,dist
+from Box2DWorld import (world, arm, createBox, createCircle, createTri, 
+                        createBoxFixture, myCreateRevoluteJoint, 
+                        myCreateLinearJoint, collisions)
 
+from VectorFigUtils import vnorm,dist
 from Arm import Arm
-from Robots import NaoRobot
+from Robots import NaoRobot, CartPole, Epuck
+
+
+def addWalls(pos, dx=3, dh=0, bHoriz=True, bVert=True, bMatplotlib=False): # WALL LIMITS of the world               
+    x,y = pos 
+    wl = 0.2
+    yh = (5+1)/2.0
+
+    if(bVert):
+        createBox((x,y-1), w = 3, h = wl, bDynamic=False, bMatplotlib = bMatplotlib)
+        createBox((x,y+5), w = 3, h = wl, bDynamic=False, bMatplotlib = bMatplotlib)
+
+    if(bHoriz):
+        createBox((x-dx-wl,y+yh-1), w = wl, h = 2.8+dh, bDynamic=False, bMatplotlib = bMatplotlib)
+        createBox((x+dx+wl,y+yh-1), w = wl, h = 2.8+dh, bDynamic=False, bMatplotlib = bMatplotlib)
+
+
+# *****************************************************************
+# Experimental Setup Randall Beer Agent
+# *****************************************************************
+
+class ExpSetupRandall:
+
+    def __init__(self, n = 2, debug = False):
+        global bDebug
+        bDebug = debug        
+        print "-------------------------------------------------"
+        self.steps = 0
+        self.yini = -0.8
+        world.gravity = Box2D.b2Vec2(0,-10) 
+        self.epucks = [Epuck(position=[-1+2*i,self.yini],frontIR=12, bHorizontal=True) for i in range(n)] 
+        addWalls((0,0),dx=3,dh=0.3,bVert=False)
+        self.objs = []
+        
+    def update(self):
+        if(self.steps % 100 == 0): self.addReward()
+        self.steps += 1
+        alive = []
+        for o in self.objs:
+            x,y = o.position
+            bRemove = False
+            if(y < -2 or y > 8): bRemove = True
+            for c in o.contacts:
+                cpos = c.contact.worldManifold.points[0]
+                if(vnorm(cpos)<0.01): continue
+                o.userData["energy"] -= 0.2
+                if(o.userData["energy"] <= 0): 
+                    bRemove = True  
+                    data = c.other.userData
+                    if(data["name"]=="epuck"): data["reward"] += 1
+                    
+            if(bRemove): world.DestroyBody(o)
+            else: alive.append(o)
+        self.objs = alive
+
+        for e in self.epucks:
+            e.update() 
+            x,y = e.body.position
+            e.body.position =  [x,self.yini]
+
+    def addReward(self):
+        pos = [0,5]
+        obj = createCircle(position=pos, density=10, name="reward",r=0.45, bMatplotlib=False)
+        obj.userData["energy"] = 1.0
+        self.objs.append(obj)
+        obj.linearVelocity = (0,-20)
+
+    def setMotor(self,epuck=0, motor=1):
+        self.epucks[epuck].motors = [motor,0]
+
+    def action(self,epuck=0, action=0):
+        if(action==0): motors = [-1,0]
+        elif(action==1): motors = [1,0]
+        elif(action==2): motors = [0,0]
+        self.epucks[epuck].motors = motors
+
+    def getIRs(self,epuck=0):
+        return self.epucks[epuck].getIRs()
+
+
+# *****************************************************************
+# Experimental Setup Epuck
+# *****************************************************************
+
+class ExpSetupEpuck:
+
+    def __init__(self, n = 1, debug = False):
+        global bDebug
+        bDebug = debug        
+        print "-------------------------------------------------"
+        #world.gravity = Box2D.b2Vec2(0,-100) 
+        self.epucks = [Epuck(position=[0,0]) for _ in range(n)] 
+        addWalls((0,0))
+
+    def update(self):
+        for e in self.epucks:
+            e.update() 
+
+    def setMotors(self,epuck=0, motors=[10,10]):
+        self.epucks[epuck].motors = motors
+
+
+# *****************************************************************
+# Experimental Setup Class : Dual CartPole holding object
+# *****************************************************************
+
+class ExpSetupDualCartPole:
+
+    max_motor_speed = 30
+
+    def __init__(self, xshift=0, salientMode = "center", name="simple", debug = False, objBetween = 1, objWidth = 0.1, objForce=100, bSelfCollisions=True):
+        global world, bDebug
+        bDebug = debug        
+        print "-------------------------------------------------"
+        print "Created Exp Dual Cart Pole Setup ", name, "Debug: ", bDebug
+
+        #world = Box2D.b2World(gravity=[0.0, -10])
+        world.gravity = Box2D.b2Vec2(0,-1000) 
+
+        self.name = name
+        self.salient = []
+        self.haptic = [0.1]*10
+        self.addWalls([0,0])
+        self.xshift = xshift
+        
+        xpos = 1.5
+        self.carts = [CartPole(position=(-xpos+xshift,0),bHand=1,d=0.8), CartPole(position=(xpos+xshift,0),bHand=2,d=0.8)]
+        
+        if(objWidth > 0): 
+            if(objBetween == 2): 
+                self.link = [createBox( (xshift,2), xpos*0.8, objWidth, bDynamic=True, restitution = 0.8)]
+            elif(objBetween == 1): 
+                objLong = xpos*0.8 / 2.0
+                bodyA = createBox( (xshift-objLong,2), objLong, objWidth, bDynamic=True, restitution = 0.8)
+                bodyB = createBox( (xshift+objLong,2), objLong, objWidth-0.03, bDynamic=True, restitution = 0.8)
+                self.joint = myCreateLinearJoint(bodyA,bodyB,force=objForce)
+                self.link = [bodyA,bodyB]
+
+        if(bSelfCollisions): collisionGroup=None
+        else: collisionGroup=-1
+      
+        if(bDebug):
+            print "Exp Setup created", "salient points: ", self.salient 
+
+    def addWalls(self,pos, bMatplotlib=False): # WALL LIMITS of the world               
+        x,y = pos 
+        wl = 0.2
+        h = (5+1)/2.0
+        l = 4.45
+        createBox((x,y-1), w = l+2*wl, h = wl, bDynamic=False, bMatplotlib = bMatplotlib)
+        #createBox((x,y+5), w = 3, h = wl, bDynamic=False, bMatplotlib = bMatplotlib)
+        createBox((x-l-wl,y+h-1), w = wl, h = 2.8, bDynamic=False, bMatplotlib = bMatplotlib)
+        createBox((x+l+wl,y+h-1), w = wl, h = 2.8, bDynamic=False, bMatplotlib = bMatplotlib)
+
+    def getSalient(self):
+        return [cart.getBodyPos() for cart in self.carts]
+
+    def getLinkExtreme(self,i):
+        if(i==0):
+            body = self.link[0]
+            shape = body.fixtures[0].shape
+            vertices=[body.transform*v for v in shape.vertices]
+            pos=(vertices[0]+vertices[3])/2
+        if(i==1):
+            body = self.link[-1]
+            shape = body.fixtures[0].shape
+            vertices=[body.transform*v for v in shape.vertices]
+            pos=(vertices[1]+vertices[2])/2
+        return pos
+
+    def getLinkDistance(self,i):
+        return dist(self.getSalient()[i],self.getLinkExtreme(i))
+
+    def setMotorSpeed(self,i,speed):
+        self.carts[i].setMotorSpeed(speed)
+
+    def resetPositionBody(self,b):
+        b.linearVelocity = [0,0]
+        b.angularVelocity = 0
+        b.angle = 0
+        b.position = (self.xshift,2)
+        for i in [0,1]:
+            self.carts[i].resetPosition()
+
+    def resetPosition(self):
+        for b in self.link:
+            self.resetPositionBody(b)
+
+    def getAngles(self):
+        return [cart.getAngle() for cart in self.carts]
+
+    def getPositions(self):
+        return [cart.getPosition() for cart in self.carts]
+
+    def getVelocities(self):
+        return [cart.getVelocity()[0] for cart in self.carts]
+
+    def getLinkPos(self):
+        if(len(self.link) == 1):
+            return self.link.position
+        else:
+            return (self.link[0].position + self.link[-1].position)/2.0
+
+
+
 
 # *****************************************************************
 # Experimental Setup Class : NaoRobot class plus walls plus object
 # *****************************************************************
 
 class ExpSetupNao:
-
     max_motor_speed = 30
 
     def __init__(self, pos_obj = (0,1.3), pos_nao = (0,0), obj_type = "circle", salientMode = "center", name="simple", debug = False, bTwoArms=True, bSelfCollisions=True):
         global bDebug
         bDebug = debug        
         print "-------------------------------------------------"
-        print "Created Exp Bimanual Setup ", name, "Debug: ", bDebug
-        self.name = name
+        print "Created Exp Bimanual Setup: ", name, "Debug: ", bDebug
+        self.name = name.lower()
         self.dm_lim = 1
         self.v_lim = 0.3
 
@@ -26,15 +232,37 @@ class ExpSetupNao:
         self.haptic = []
         self.obj_type = obj_type
 
-        self.addWalls(pos_nao)
-
         if(bSelfCollisions): collisionGroup=None
         else: collisionGroup=-1
 
-        self.nao = NaoRobot(pos_nao,name=name,bTwoArms=bTwoArms,collisionGroup=collisionGroup)
-        #self.human = NaoRobot( (pos_nao[0],pos_nao[1]+4) )
-
+        self.name_robot = "simple"    
+        bOppositeArms = False      
         self.objs = []
+                     
+        if(self.name == "bimanual"):
+            self.name_robot = "human" 
+            addWalls(pos_nao)
+            self.iniThreeObjects(pos_obj,obj_type)
+        elif(self.name == "twooppositearms"):   
+            self.name_robot = "human"
+            bOppositeArms = True
+            self.obj_type = "circle"
+            self.iniConstrainedObject(pos_obj)
+            w = 0.3
+            self.boxA = createBox([-0.8,1.5], w = w, h = w, bDynamic=False, bMatplotlib=False, bCollideNoOne=True, name="boxA") 
+            self.boxB = createBox([0.8,1.5], w = w, h = w, bDynamic=False, bMatplotlib=False, bCollideNoOne=True, name="boxB") 
+
+        self.nao = NaoRobot(pos_nao,name=self.name_robot,bTwoArms=bTwoArms,bOppositeArms=bOppositeArms,collisionGroup=collisionGroup)
+        self.arms = self.nao.arms
+
+        self.ini_obj_pos = pos_obj
+
+        self.changeSalientMode(salientMode)        
+        if(bDebug):
+            print "Exp Setup created", self.salientMode, "salient points: ", self.salient 
+
+
+    def iniThreeObjects(self,pos_obj,obj_type):
         self.objs.append( createCircle(pos_obj, r=0.45, bMatplotlib=False) )
         self.objs.append( createTri(pos_obj, r=0.45, bMatplotlib=False) )
         self.objs.append( createBox(pos_obj, wdiv = 1, hdiv = 1, w = 0.35, h = 0.35, bMatplotlib=False) )
@@ -53,20 +281,18 @@ class ExpSetupNao:
         if(obj_type == "circle"): self.obj,self.target_obj = self.objs[0], self.target_objs[0]
         elif(obj_type == "box"):  self.obj,self.target_obj = self.objs[2], self.target_objs[2]
 
-        self.ini_obj_pos = pos_obj
 
-        self.changeSalientMode(salientMode)        
-        if(bDebug):
-            print "Exp Setup created", self.salientMode, "salient points: ", self.salient 
+    def iniConstrainedObject(self,pos_obj):
+        obj = createCircle(pos_obj, r=0.3, density=0.01, bMatplotlib=False, name="ball")
+        self.objs.append( obj )
+        obj.position = [0,1.5]
+        self.obj = self.objs[0]
+        obj.userData["name"] = "toy"
 
-    def addWalls(self,pos, bMatplotlib=False): # WALL LIMITS of the world               
-        x,y = pos 
-        wl = 0.2
-        h = (5+1)/2.0
-        createBox((x,y-1), w = 3, h = wl, dynamic=False, bMatplotlib = bMatplotlib)
-        createBox((x,y+5), w = 3, h = wl, dynamic=False, bMatplotlib = bMatplotlib)
-        createBox((x-3-wl,y+h-1), w = wl, h = 2.8, dynamic=False, bMatplotlib = bMatplotlib)
-        createBox((x+3+wl,y+h-1), w = wl, h = 2.8, dynamic=False, bMatplotlib = bMatplotlib)
+        bar = createBox(obj.position, w = 1, h = 0.001, bDynamic=False, bMatplotlib=False, bCollideNoOne=True) 
+        bar.userData["name"] = "bar"
+
+        self.joint = myCreateLinearJoint(bar,obj,force=0,lowerTranslation = -0.82,upperTranslation=0.82)
 
     def setTargetObj(self,pos,angle=0):
         self.target_obj.position = pos 
@@ -152,8 +378,6 @@ class ExpSetupNao:
                     h = 1 - d/maxd
                     self.haptic[i] = h
 
-
-
     def update(self,iarm =-1):
         err = self.nao.update(iarm = arm)
         self.updateSalient()
@@ -187,195 +411,20 @@ class ExpSetupNao:
         if(len(h) >= abs(t)): return h[t]
         else:  return [0]*arms[iarm].nparts
  
-
     def deltaMotor(self,dm):
         return self.nao.deltaMotor(dm)
 
 
-# *****************************************************************
-# Arm class of any parts and adding a joint extra hand if wanted
-       
-class CartPole:
-
-    def __init__(self, position=(0,0), name="simple", bMatplotlib = False, d = 1, bHand = 0, collisionGroup=None):
-        global bDebug
-        self.name = name
-        self.ini_pos = position
-        self.salientMode = "all"
-        self.circle = createCircle(position, r=d*0.6, dynamic=True, bMatplotlib = True)
-        self.box = createBox( (position[0],position[1]+d*1.9), d*0.2, d*2, dynamic=True)
-        self.joint = myCreateRevoluteJoint(self.circle,self.box,position,iswheel=True)    
-        self.bHand = bHand
-
-        if(bHand>0): 
-            body = self.box
-            h = d*0.15
-            w = d*0.4
-            pos = (2*w-d*0.2,0)
-            if(bHand == 2): pos = (-2*w+d*0.2,0)
-            fixtureDef = createBoxFixture(body, pos, width=w, height=h, collisionGroup = collisionGroup)
-            fixture = body.CreateFixture(fixtureDef)
-
-        self.motor_speed = 0
-        self.angle = 0
-
-    def resetPosition(self):
-        ipos = self.ini_pos
-        self.motor_speed = 0
-        self.angle = 0
-        self.joint.motorSpeed = 0
-        self.joint.torque = 0
-        self.box.linearVelocity = [0,0]
-        self.box.angularVelocity = 0
-        self.box.angle = 0
-        self.box.position = (ipos[0],ipos[1]+1.9)
-
-        self.circle.linearVelocity = [0,0]
-        self.circle.angularVelocity = 0
-        self.circle.angle = 0
-        self.circle.position = (ipos[0],ipos[1])
-
-    def getBodyPos(self):
-        body = self.box
-        shape = body.fixtures[1].shape
-        verticesHand=[body.transform*v for v in shape.vertices]
-
-        shape = body.fixtures[0].shape
-        vertices=[body.transform*v for v in shape.vertices]
-
-        if(self.bHand == 2): 
-            d = vertices[2] - vertices[1]
-            d = (d[0]/12.,d[1]/12.)
-            p = (verticesHand[1] + verticesHand[2])/2.0 + d 
-        else: 
-            d = vertices[2] - vertices[1]
-            d = (d[0]/12.,d[1]/12.)
-            p = (verticesHand[3] + verticesHand[0])/2.0 + d
-
-        ret = [p[0], p[1]]
-        ret = [round(e,2) for e in ret]
-        return ret
+    def resetOpposite(self):
+        collisions(False)
+        da = self.nao.m_maxs()[0]/4
+        db = self.nao.m_mins()[1]/4            
+        self.nao.gotoTargetJoints([da,-db]+[0]*(self.nao.nparts-2),iarm=0) 
+        self.nao.gotoTargetJoints([da,-db]+[0]*(self.nao.nparts-2),iarm=1) 
+        collisions(True)
+        self.setObjPos()
 
 
-    def setMotorSpeed(self,speed):  
-        self.joint.motorSpeed = speed
-
-    def getAngle(self):
-        return self.box.angle
-
-    def getPosition(self):
-        return self.box.position[0]
-
-    def getVelocity(self):
-        return self.box.linearVelocity
-
-    def update(self):
-        self.setMotorSpeed( self.motor_speed )
-        self.angle = self.getAngle()
-
-
-
-# *****************************************************************
-# Experimental Setup Class : Dual CartPole holding object
-# *****************************************************************
-
-class ExpSetupDualCartPole:
-
-    max_motor_speed = 30
-
-    def __init__(self, xshift=0, salientMode = "center", name="simple", debug = False, objBetween = 1, objWidth = 0.1, objForce=100, bSelfCollisions=True):
-        global world, bDebug
-        bDebug = debug        
-        print "-------------------------------------------------"
-        print "Created Exp Dual Cart Pole Setup ", name, "Debug: ", bDebug
-
-        #world = Box2D.b2World(gravity=[0.0, -10])
-        world.gravity = Box2D.b2Vec2(0,-1000) 
-
-        self.name = name
-        self.salient = []
-        self.haptic = [0.1]*10
-        self.addWalls([0,0])
-        self.xshift = xshift
-        
-        xpos = 1.5
-        self.carts = [CartPole(position=(-xpos+xshift,0),bHand=1,d=0.8), CartPole(position=(xpos+xshift,0),bHand=2,d=0.8)]
-        
-        if(objWidth > 0): 
-            if(objBetween == 2): 
-                self.link = [createBox( (xshift,2), xpos*0.8, objWidth, dynamic=True, restitution = 0.8)]
-            elif(objBetween == 1): 
-                objLong = xpos*0.8 / 2.0
-                bodyA = createBox( (xshift-objLong,2), objLong, objWidth, dynamic=True, restitution = 0.8)
-                bodyB = createBox( (xshift+objLong,2), objLong, objWidth-0.03, dynamic=True, restitution = 0.8)
-                self.joint = myCreateLinearJoint(bodyA,bodyB,force=objForce)
-                self.link = [bodyA,bodyB]
-
-        if(bSelfCollisions): collisionGroup=None
-        else: collisionGroup=-1
-      
-        if(bDebug):
-            print "Exp Setup created", "salient points: ", self.salient 
-
-
-    def addWalls(self,pos, bMatplotlib=False): # WALL LIMITS of the world               
-        x,y = pos 
-        wl = 0.2
-        h = (5+1)/2.0
-        l = 4.45
-        createBox((x,y-1), w = l+2*wl, h = wl, dynamic=False, bMatplotlib = bMatplotlib)
-        #createBox((x,y+5), w = 3, h = wl, dynamic=False, bMatplotlib = bMatplotlib)
-        createBox((x-l-wl,y+h-1), w = wl, h = 2.8, dynamic=False, bMatplotlib = bMatplotlib)
-        createBox((x+l+wl,y+h-1), w = wl, h = 2.8, dynamic=False, bMatplotlib = bMatplotlib)
-
-    def getSalient(self):
-        return [cart.getBodyPos() for cart in self.carts]
-
-    def getLinkExtreme(self,i):
-        if(i==0):
-            body = self.link[0]
-            shape = body.fixtures[0].shape
-            vertices=[body.transform*v for v in shape.vertices]
-            pos=(vertices[0]+vertices[3])/2
-        if(i==1):
-            body = self.link[-1]
-            shape = body.fixtures[0].shape
-            vertices=[body.transform*v for v in shape.vertices]
-            pos=(vertices[1]+vertices[2])/2
-        return pos
-
-    def getLinkDistance(self,i):
-        return dist(self.getSalient()[i],self.getLinkExtreme(i))
-
-    def setMotorSpeed(self,i,speed):
-        self.carts[i].setMotorSpeed(speed)
-
-    def resetPositionBody(self,b):
-        b.linearVelocity = [0,0]
-        b.angularVelocity = 0
-        b.angle = 0
-        b.position = (self.xshift,2)
-        for i in [0,1]:
-            self.carts[i].resetPosition()
-
-    def resetPosition(self):
-        for b in self.link:
-            self.resetPositionBody(b)
-
-    def getAngles(self):
-        return [cart.getAngle() for cart in self.carts]
-
-    def getPositions(self):
-        return [cart.getPosition() for cart in self.carts]
-
-    def getVelocities(self):
-        return [cart.getVelocity()[0] for cart in self.carts]
-
-    def getLinkPos(self):
-        if(len(self.link) == 1):
-            return self.link.position
-        else:
-            return (self.link[0].position + self.link[-1].position)/2.0
 
 
 

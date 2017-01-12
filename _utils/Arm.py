@@ -3,7 +3,8 @@ import time
 import numpy as np
 import itertools
 import math
-from Box2DWorld import createArm, bDebug, SPEED_JOINT
+import VectorFigUtils
+from Box2DWorld import world, TIME_STEP, vel_iters, pos_iters, createArm, bDebug, SPEED_JOINT
             
 # *****************************************************************
 # Arm class of any parts and adding a joint extra hand if wanted
@@ -11,7 +12,7 @@ from Box2DWorld import createArm, bDebug, SPEED_JOINT
 class Arm:
     size_history  = 50
 
-    def __init__(self, nparts=2, position=(0,0), name="simple", bMatplotlib = False, length = 1, bHand = False, hdiv = 1, bLateralize = 0, bShrink = False, collisionGroup=None):
+    def __init__(self, nparts=2, position=(0,0), name="simple", bMatplotlib = False, length = 1, bHand = False, hdiv = 1, bLateralize = 0, bShrink = False, collisionGroup=None,signDir=1):
         global arm, bDebug
         arm = self
         self.name = name
@@ -19,7 +20,8 @@ class Arm:
         self.salientMode = "all"
         self.nparts = nparts
         self.bHand = bHand
-        self.jointList = createArm(position, nparts, bLateralize = bLateralize, bMatplotlib = bMatplotlib, length = length, bHand = bHand, hdiv = hdiv, name=name, bShrink = bShrink, collisionGroup=collisionGroup)
+        self.jointList = createArm(position, nparts, bLateralize = bLateralize, bMatplotlib = bMatplotlib, length = length, bHand = bHand, hdiv = hdiv, name=name, bShrink = bShrink, collisionGroup=collisionGroup,signDir=signDir)
+
         self.targetJoints = [0] * nparts      # without np multiply equals repeat
         if(bHand): self.targetJoints += [0]   # withou np sum equals concat
         self.salient = []
@@ -93,6 +95,7 @@ class Arm:
     def getMotorSpeeds(self):
         return [j.motorSpeed for j in self.jointList]
 
+
     def getFinalPos(self, part = -1):
         if(self.bHand and part < -1): part = part - 1
         body = self.jointList[part].bodyB
@@ -105,7 +108,11 @@ class Arm:
             angle = vangleSign(u,v)            
             ret = [p[0], p[1], angle]
         else:
-            p = (vertices[-1] + vertices[-2])/2.0 # in the middle
+            if(body.userData["name"] != "reversearmpart"):
+                p = (vertices[-1] + vertices[-2])/2.0 # in the middle
+            else:
+                p = (vertices[0] + vertices[1])/2.0 # if the arm is reversed downside
+
             ret = [p[0], p[1]]
 
         ret = [round(e,2) for e in ret]
@@ -124,7 +131,6 @@ class Arm:
             pm = self.getFinalPos(part=-2)
             self.salient += [(pm[0],pm[1])]
         return self.salient
-
 
     def addHistory(self):
         #hist = np.array(self.getJointAngles())        
@@ -186,7 +192,6 @@ class Arm:
 
     def getSalient(self):
         return self.salient
-
 
     def m_mins(self): 
         joint_limits = self.getJointLimits()

@@ -16,38 +16,41 @@ box2dWH = (PyGameUtils.SCREEN_WIDTH, PyGameUtils.SCREEN_HEIGHT)
 pygame.init()
 screen = pygame.display.set_mode(box2dWH, 0, 32)
 surfarray.use_arraytype('numpy')
-pygame.display.set_caption('Two Arm Simulation Learning')
+pygame.display.set_caption('Arm Simulation Learning')
 clock=pygame.time.Clock()
 
-exp = ExpSetupNao(obj_type="box", salientMode = "minimum", debug = True, name = "bimanual")
+exp = ExpSetupNao(debug = True, name ="TwoOppositeArms")
 exp.setObjPos()
 nao = exp.nao
 obj = exp.obj
 
 dm = np.array([1,1,1])
 
+exp.resetOpposite()
+
+
+
 running=True
 while running:
     # Check the event queue
     for event in pygame.event.get():
         if(event.type!=pygame.KEYDOWN): continue
-
         if(event.key== pygame.K_LEFT): nao.arms[0].deltaMotor(dm)
         if(event.key== pygame.K_RIGHT): nao.arms[0].deltaMotor(-dm)
         if(event.key== pygame.K_UP): nao.arms[1].deltaMotor(dm)
         if(event.key== pygame.K_DOWN): nao.arms[1].deltaMotor(-dm)
-
         if(event.key== pygame.K_SPACE): exp.setObjPos()
+        if event.type==pygame.QUIT or event.key==pygame.K_ESCAPE: running=False
 
-        if event.type==pygame.QUIT or event.key==pygame.K_ESCAPE:
-            # The user closed the window or pressed escape
-            running=False
+        if(event.key== pygame.MOUSEBUTTONDOWN):
+            pygame.mouse.get_pressed()
+
 
     screen.fill((0,0,0,0))
 
     PyGameUtils.draw_contacts(screen,exp)
     PyGameUtils.draw_world(screen)
-    PyGameUtils.my_draw_line(screen, exp.getObjLine() )
+    #PyGameUtils.my_draw_line(screen, exp.getObjLine() )
    
     Box2DWorld.step()
     exp.update()
