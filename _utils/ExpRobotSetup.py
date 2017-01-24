@@ -1,7 +1,7 @@
 import numpy as np
 import Box2D
-from Box2DWorld import (world, arm, createBox, createCircle, createTri, 
-                        createBoxFixture, myCreateRevoluteJoint, 
+from Box2DWorld import (world, arm, createBox, createCircle, createTri, createRope,
+                        createBoxFixture, myCreateRevoluteJoint, myCreateDistanceJoint,
                         myCreateLinearJoint, collisions)
 
 from VectorFigUtils import vnorm,dist
@@ -116,7 +116,7 @@ class ExpSetupDualCartPole:
 
     max_motor_speed = 30
 
-    def __init__(self, xshift=0, salientMode = "center", name="simple", debug = False, objBetween = 1, objWidth = 0.1, objForce=100, bSelfCollisions=True):
+    def __init__(self, xshift=0, salientMode = "center", name="simple", debug = False, objBetween = 4, objWidth = 0.1, objForce=100, bSelfCollisions=True):
         global world, bDebug
         bDebug = debug        
         print "-------------------------------------------------"
@@ -130,19 +130,35 @@ class ExpSetupDualCartPole:
         self.haptic = [0.1]*10
         self.addWalls([0,0])
         self.xshift = xshift
-        
+        self.objBetween = objBetween
         xpos = 1.5
-        self.carts = [CartPole(position=(-xpos+xshift,0),bHand=1,d=0.8), CartPole(position=(xpos+xshift,0),bHand=2,d=0.8)]
+
+        self.carts = [CartPole(position=(-xpos+xshift,-0.3),bHand=1,d=0.8,collisionGroup = 1), CartPole(position=(xpos+xshift,-0.3),bHand=2,d=0.8,collisionGroup = 2)]
         
         if(objWidth > 0): 
-            if(objBetween == 2): 
+            bodyleft, bodyright = self.carts[0].box, self.carts[1].box
+            if(objBetween == 1): 
                 self.link = [createBox( (xshift,2), xpos*0.8, objWidth, bDynamic=True, restitution = 0.8)]
-            elif(objBetween == 1): 
-                objLong = xpos*0.8 / 2.0
-                bodyA = createBox( (xshift-objLong,2), objLong, objWidth, bDynamic=True, restitution = 0.8)
-                bodyB = createBox( (xshift+objLong,2), objLong, objWidth-0.03, bDynamic=True, restitution = 0.8)
-                self.joint = myCreateLinearJoint(bodyA,bodyB,force=objForce)
+            elif(objBetween >= 2 and objBetween <= 3): 
+                y = 1.53
+                if(objBetween == 3): objLong = xpos*0.8 / 3.5
+                else: objLong = xpos*0.8 / 2.0
+                bodyA = createBox( (xshift-objLong,y), objLong, objWidth, bDynamic=True, restitution = 0.8)
+                bodyB = createBox( (xshift+objLong,y), objLong, objWidth-0.03, bDynamic=True, restitution = 0.8)
+                self.joint = myCreateLinearJoint(bodyA,bodyB,force=objForce,lowerTranslation = -0.9,upperTranslation = 0)
                 self.link = [bodyA,bodyB]
+                if(objBetween == 3):
+                    dy = 0.3
+                    bodyA.position = (xshift-objLong,y-dy)
+                    bodyB.position = (xshift+objLong,y-dy)
+                    self.jointleft = myCreateRevoluteJoint(bodyleft,bodyA,(xshift-1.95*objLong,y+objWidth/2.0-dy),lowerAngle = -2*np.pi, upperAngle = 2*np.pi)
+                    self.jointright = myCreateRevoluteJoint(bodyright,bodyB, (xshift+1.95*objLong,y+objWidth/2.0-dy),lowerAngle = -2*np.pi, upperAngle = 2*np.pi)
+            elif(objBetween == 4):
+                pini = (bodyleft.position[0]+0.8, bodyleft.position[1])
+                rbodies,rlinks = createRope(pini,10,r=0.1,density=0.0001)
+                self.link = rbodies
+                myCreateDistanceJoint(bodyleft,rbodies[0],dx=0.8)
+                myCreateDistanceJoint(bodyright,rbodies[1],dx=-0.8)
 
         if(bSelfCollisions): collisionGroup=None
         else: collisionGroup=-1
@@ -166,11 +182,17 @@ class ExpSetupDualCartPole:
     def getLinkExtreme(self,i):
         if(i==0):
             body = self.link[0]
+            if(body is Box2D.b2CircleShape):
+                pos = body.center
+                return
             shape = body.fixtures[0].shape
             vertices=[body.transform*v for v in shape.vertices]
             pos=(vertices[0]+vertices[3])/2
         if(i==1):
             body = self.link[-1]
+            if(body is Box2D.b2CircleShape):
+                pos = body.center
+                return
             shape = body.fixtures[0].shape
             vertices=[body.transform*v for v in shape.vertices]
             pos=(vertices[1]+vertices[2])/2
@@ -186,14 +208,23 @@ class ExpSetupDualCartPole:
         b.linearVelocity = [0,0]
         b.angularVelocity = 0
         b.angle = 0
-        b.position = (self.xshift,2)
+        b.position = (self.xshift,1.5)
+
+    def resetPosition(self):
+        bcartleft,bcartright = self.carts[0].box, self.carts[1].box
         for i in [0,1]:
             self.carts[i].resetPosition()
 
-    def resetPosition(self):
-        for b in self.link:
-            self.resetPositionBody(b)
-
+        if(self.objBetween < 4): 
+            for b in self.link:
+                self.resetPositionBody(b)
+        else:
+            bleft = self.link[0]
+            bleft.position = (bcartleft.position[0]+0.8, bcartleft.position[1])
+            bright = self.link[1]
+            bright.position = (bcartright.position[0]-0.8, bcartright.position[1])
+        
+        
     def getAngles(self):
         return [cart.getAngle() for cart in self.carts]
 

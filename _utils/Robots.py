@@ -264,8 +264,9 @@ class CartPole:
             w = d*0.4
             pos = (2*w-d*0.2,0)
             if(bHand == 2): pos = (-2*w+d*0.2,0)
-            fixtureDef = createBoxFixture(body, pos, width=w, height=h, collisionGroup = collisionGroup)
+            fixtureDef = createBoxFixture(pos, width=w, height=h, collisionGroup = collisionGroup)
             fixture = body.CreateFixture(fixtureDef)
+
 
         self.motor_speed = 0
         self.angle = 0
@@ -279,7 +280,7 @@ class CartPole:
         self.box.linearVelocity = [0,0]
         self.box.angularVelocity = 0
         self.box.angle = 0
-        self.box.position = (ipos[0],ipos[1]+1.9)
+        self.box.position = (ipos[0],ipos[1]+1.5)
 
         self.circle.linearVelocity = [0,0]
         self.circle.angularVelocity = 0
@@ -288,6 +289,7 @@ class CartPole:
 
     def getBodyPos(self):
         body = self.box
+
         shape = body.fixtures[1].shape
         verticesHand=[body.transform*v for v in shape.vertices]
 

@@ -269,6 +269,24 @@ def drawBox2D(ax, body, fixture, alpha = 0.5, color = 'b', fill=True, linestyle=
     poly = drawBox(ax,vertices,alpha=alpha,color=color,fill=fill,linestyle=linestyle)
     return poly
 
+
+def myCreateDistanceJoint(bodyA,bodyB,dx=0):
+    global world
+
+    pA = (bodyA.worldCenter[0]+dx, bodyA.worldCenter[1])
+    pB = (bodyB.worldCenter[0], bodyB.worldCenter[1])
+    joint = world.CreateDistanceJoint(
+            bodyA=bodyA, 
+            bodyB=bodyB, 
+            anchorA=pA,
+            anchorB=pB,
+            collideConnected = False,
+            )
+    #joint.frequencyHz = 4.0
+    #joint.dampingRatio = 0.5
+    return joint
+
+
 def myCreateLinearJoint(bodyA,bodyB,force=100,lowerTranslation = -0.2,upperTranslation = 0):
     global world
     center = (bodyA.worldCenter + bodyB.worldCenter)/2.0
@@ -333,6 +351,7 @@ def createGround(position=[0,-20], bMatplotlib = True):
 
     return groundBody
 
+
 def createCircle(position, r=0.3, bDynamic=True, density=1, bMatplotlib = True, name=""):
     global world, fig, ax
     bodyDef = Box2D.b2BodyDef()
@@ -364,7 +383,24 @@ def createCircle(position, r=0.3, bDynamic=True, density=1, bMatplotlib = True, 
     return body
 
 
-def createBoxFixture(body, pos = (0,0), width=1.0, height=1.0, bDynamic=True, collisionGroup = None, restitution=None):
+def createRope(position, nparts=10, r=0.3, density=1, bMatplotlib = True, name=""):
+    global world
+    jointList = []
+    
+    firstBody = createCircle( position, r=r, bMatplotlib=bMatplotlib)
+    firstBody.userData["name"]="ropepart"   
+
+    prevBody = firstBody
+    pos = position
+    for i in range(nparts):
+        body = createCircle( pos, r=r, density=density, bMatplotlib=bMatplotlib)
+        jointList.append( myCreateDistanceJoint(prevBody,body) )
+        pos = (pos[0]+1.5*r,pos[1])
+        prevBody = body
+    return [firstBody, body], [jointList[0], jointList[-1]]
+
+
+def createBoxFixture(pos = (0,0), width=1.0, height=1.0, bDynamic=True, collisionGroup = None, restitution=None):
     global world
     boxShape = Box2D.b2PolygonShape()
     boxShape.SetAsBox(width, height, pos, 0)    # width, height, position (x,y), angle 
@@ -407,7 +443,7 @@ def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, bDynamic=True, damping
         for j in range(wdiv):
             x = 2*j*dw + (1-wdiv)*dw
             y = 2*i*dh + (1-hdiv)*dh
-            fixtureDef = createBoxFixture(body, (x,y), width=dw, height=dh, collisionGroup = collisionGroup, restitution=restitution)
+            fixtureDef = createBoxFixture((x,y), width=dw, height=dh, collisionGroup = collisionGroup, restitution=restitution)
             if(bCollideNoOne): fixtureDef.filter.maskBits = 0x0000;
             fixture = body.CreateFixture(fixtureDef)
 
@@ -491,6 +527,7 @@ def createArm(position = (0,0), nparts = 4, name="simple", bMatplotlib = True, c
         
     return jointList
             
+
 
 
 def vrotate(v, angle, anchor=[0,0]):

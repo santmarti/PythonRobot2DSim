@@ -18,7 +18,7 @@ surfarray.use_arraytype('numpy')
 pygame.display.set_caption('Arm Simulation Learning')
 clock=pygame.time.Clock()
 
-dm = 10
+dm = 50
 exp = ExpSetupDualCartPole(debug = True,xshift=-2.1)
 
 running=True
@@ -48,8 +48,8 @@ while running:
 
     PyGameUtils.draw_salient(screen, exp)
 
-    PyGameUtils.my_draw_line(screen,[exp.getSalient()[0],exp.getLinkExtreme(0)])
-    PyGameUtils.my_draw_line(screen,[exp.getSalient()[1],exp.getLinkExtreme(1)])
+    #PyGameUtils.my_draw_line(screen,[exp.getSalient()[0],exp.getLinkExtreme(0)])
+    #PyGameUtils.my_draw_line(screen,[exp.getSalient()[1],exp.getLinkExtreme(1)])
 
     pygame.display.flip()              # Flip the screen and try to keep at the target FPS
     clock.tick(Box2DWorld.TARGET_FPS)
