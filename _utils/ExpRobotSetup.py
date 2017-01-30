@@ -123,7 +123,7 @@ class ExpSetupDualCartPole:
         print "Created Exp Dual Cart Pole Setup ", name, "Debug: ", bDebug
 
         #world = Box2D.b2World(gravity=[0.0, -10])
-        world.gravity = Box2D.b2Vec2(0,-1000) 
+        world.gravity = Box2D.b2Vec2(0,-1400) 
 
         self.name = name
         self.salient = []
