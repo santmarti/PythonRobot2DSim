@@ -123,7 +123,7 @@ class ExpSetupDualCartPole:
         print "Created Exp Dual Cart Pole Setup ", name, "Debug: ", bDebug
 
         #world = Box2D.b2World(gravity=[0.0, -10])
-        world.gravity = Box2D.b2Vec2(0,-1400) 
+        world.gravity = Box2D.b2Vec2(0,-100) 
 
         self.name = name
         self.salient = []
@@ -133,7 +133,7 @@ class ExpSetupDualCartPole:
         self.objBetween = objBetween
         xpos = 1.5
 
-        self.carts = [CartPole(position=(-xpos+xshift,-0.3),bHand=1,d=0.8,collisionGroup = 1), CartPole(position=(xpos+xshift,-0.3),bHand=2,d=0.8,collisionGroup = 2)]
+        self.carts = [CartPole(name="cartLeft",position=(-xpos+xshift,-0.3),bHand=1,d=0.8,collisionGroup = 1), CartPole(name="cartRight",position=(xpos+xshift,-0.3),bHand=2,d=0.8,collisionGroup = 2)]
         
         if(objWidth > 0): 
             bodyleft, bodyright = self.carts[0].box, self.carts[1].box
@@ -155,7 +155,7 @@ class ExpSetupDualCartPole:
                     self.jointright = myCreateRevoluteJoint(bodyright,bodyB, (xshift+1.95*objLong,y+objWidth/2.0-dy),lowerAngle = -2*np.pi, upperAngle = 2*np.pi)
             elif(objBetween == 4):
                 pini = (bodyleft.position[0]+0.8, bodyleft.position[1])
-                rbodies,rlinks = createRope(pini,10,r=0.1,density=0.0001)
+                rbodies,rlinks = createRope(pini,10,r=0.1,density=1)
                 self.link = rbodies
                 myCreateDistanceJoint(bodyleft,rbodies[0],dx=0.8)
                 myCreateDistanceJoint(bodyright,rbodies[1],dx=-0.8)
@@ -165,6 +165,10 @@ class ExpSetupDualCartPole:
       
         if(bDebug):
             print "Exp Setup created", "salient points: ", self.salient 
+
+    def update(self):
+        for i in [0,1]:
+            self.carts[i].update()
 
     def addWalls(self,pos, bMatplotlib=False): # WALL LIMITS of the world               
         x,y = pos 

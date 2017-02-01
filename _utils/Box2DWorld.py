@@ -282,7 +282,7 @@ def myCreateDistanceJoint(bodyA,bodyB,dx=0):
             anchorB=pB,
             collideConnected = False,
             )
-    #joint.frequencyHz = 4.0
+    #joint.frequencyHz = 0.000001
     #joint.dampingRatio = 0.5
     return joint
 
@@ -373,7 +373,7 @@ def createCircle(position, r=0.3, bDynamic=True, density=1, bMatplotlib = True, 
         bodyDef.angularDamping = 30
 
     body = world.CreateBody(bodyDef)
-    fixture = body.CreateFixture(shape=Box2D.b2CircleShape(radius=r), density=1.0, friction=0.3)    
+    fixture = body.CreateFixture(shape=Box2D.b2CircleShape(radius=r), density=density, friction=0.5)    
     body.userData = {"name":name}
 
     if(bMatplotlib): 
@@ -395,12 +395,12 @@ def createRope(position, nparts=10, r=0.3, density=1, bMatplotlib = True, name="
     for i in range(nparts):
         body = createCircle( pos, r=r, density=density, bMatplotlib=bMatplotlib)
         jointList.append( myCreateDistanceJoint(prevBody,body) )
-        pos = (pos[0]+1.5*r,pos[1])
+        pos = (pos[0]+1.55*r, pos[1])
         prevBody = body
     return [firstBody, body], [jointList[0], jointList[-1]]
 
 
-def createBoxFixture(pos = (0,0), width=1.0, height=1.0, bDynamic=True, collisionGroup = None, restitution=None):
+def createBoxFixture(pos = (0,0), width=1.0, height=1.0, bDynamic=True, density = 1, collisionGroup = None, restitution=None):
     global world
     boxShape = Box2D.b2PolygonShape()
     boxShape.SetAsBox(width, height, pos, 0)    # width, height, position (x,y), angle 
@@ -415,11 +415,11 @@ def createBoxFixture(pos = (0,0), width=1.0, height=1.0, bDynamic=True, collisio
 
     if(collisionGroup!=None): fixtureDef.filter.groupIndex = collisionGroup
     
-    if bDynamic: fixtureDef.density = 1
+    if bDynamic: fixtureDef.density = density
     else:       fixtureDef.density = 0            
     return fixtureDef
 
-def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, bDynamic=True, damping = 0, collisionGroup = None, bMatplotlib = True, restitution=None, bCollideNoOne=False, name=""):
+def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, bDynamic=True, density=1, damping = 0, collisionGroup = None, bMatplotlib = True, restitution=None, bCollideNoOne=False, name=""):
     global world
     bodyDef = Box2D.b2BodyDef()
     bodyDef.position = position
@@ -433,6 +433,7 @@ def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, bDynamic=True, damping
 
     if bDynamic: bodyDef.type = Box2D.b2_dynamicBody
     else:        bodyDef.type = Box2D.b2_staticBody
+
     body = world.CreateBody(bodyDef)
     body.userData = {"name":name}
 
@@ -443,10 +444,9 @@ def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, bDynamic=True, damping
         for j in range(wdiv):
             x = 2*j*dw + (1-wdiv)*dw
             y = 2*i*dh + (1-hdiv)*dh
-            fixtureDef = createBoxFixture((x,y), width=dw, height=dh, collisionGroup = collisionGroup, restitution=restitution)
+            fixtureDef = createBoxFixture((x,y), width=dw, height=dh, bDynamic=bDynamic, density=density, collisionGroup = collisionGroup, restitution=restitution)
             if(bCollideNoOne): fixtureDef.filter.maskBits = 0x0000;
             fixture = body.CreateFixture(fixtureDef)
-
 
             if(bMatplotlib): 
                 createGlobalFigure()

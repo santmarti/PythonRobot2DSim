@@ -44,7 +44,7 @@ while running:
     PyGameUtils.draw_world(screen)
     
     Box2DWorld.step()
-    #exp.update()
+    exp.update()
 
     PyGameUtils.draw_salient(screen, exp)
 

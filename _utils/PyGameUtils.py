@@ -53,7 +53,6 @@ def getMousePos():
 # PyGame Drawing function utils         
 # ****************************************************************************     
 
-        
 def draw_polygon(screen, vertices, color = (0,255,0), width=3):
     vertices=[(X0+v[0], -Y0+SCREEN_HEIGHT-v[1]) for v in vertices]
     pygame.draw.polygon(screen, color, vertices, width)
@@ -68,7 +67,18 @@ def box2d_draw_polygon(screen, polygon, body, fixture, color = [], width=3):
         draw_polygon(screen, vertices, (200,10,20), 3)       
     elif(body.userData["name"]=="boxB"):
         draw_polygon(screen, vertices, (100,80,0), 0)       
-        draw_polygon(screen, vertices, (160,120,0), 3)       
+        draw_polygon(screen, vertices, (160,120,0), 3)     
+    elif(body.userData["name"] in ["cartLeft","cartRight"]):
+        draw_polygon(screen, vertices, color, width)
+        shape = body.fixtures[0].shape
+        vertices=[body.transform*v for v in shape.vertices]
+        if(body.userData["name"] == "cartLeft"):
+            a,b = vertices[2],vertices[1]
+            chestpos = a+(b-a)/3.8
+        else:
+            a,b = vertices[3],vertices[0]
+            chestpos = a+(b-a)/3.8            
+        drawIR(screen,chestpos,body.angle,body.userData["nIR"],body.userData["IRAngles"],body.userData["IRValues"])    
     else:
         draw_polygon(screen, vertices, color, width)
 
@@ -87,6 +97,17 @@ def drawWheel(screen,r,body,color,width):
         v = Box2DWorld.vrotate((1,0),body.angle+a) 
         my_draw_line(screen, [pos, pos+[0.99*r*v[0],0.99*r*v[1]]], color=color, width=width)
 
+def drawIR(screen,pos,angle,nir,irangles,irvalues,r=0):
+    for k in range(nir):
+        v = Box2DWorld.vrotate((1,0),angle + irangles[k])
+        c = pos+[0.97*r*v[0],0.97*r*v[1]]
+        value = irvalues[k]
+        if(value > 1): value = 1
+        draw_circle(screen, PPM*c, radius=int(0.1*PPM), color=(0,0,255), width=1)
+        color = (255-255*value,0,0)
+        draw_circle(screen, PPM*c, radius=int(0.08*PPM), color=color, width=0)
+
+
 def drawEpuck(screen, r, body, color, width):
     pos=body.position
     for a in [-np.pi/4,np.pi/4]:
@@ -94,16 +115,7 @@ def drawEpuck(screen, r, body, color, width):
         c = pos+[0.98*r*v[0],0.98*r*v[1]]
         my_draw_line(screen, [pos, c], color=color, width=width)        
 
-    nir = body.userData["frontIR"] 
-    irangles = body.userData["frontIRAngles"]
-    for k in range(nir):
-        v = Box2DWorld.vrotate((1,0),body.angle + irangles[k])
-        c = pos+[0.97*r*v[0],0.97*r*v[1]]
-        value = body.userData["frontIRValues"][k]
-        if(value > 1): value = 1
-        draw_circle(screen, PPM*c, radius=int(0.1*PPM), color=(0,0,255), width=1)
-        color = (255-255*value,0,0)
-        draw_circle(screen, PPM*c, radius=int(0.08*PPM), color=color, width=0)
+    drawIR(screen,pos,body.angle,body.userData["nIR"],body.userData["IRAngles"],body.userData["IRValues"],r)
 
 
 # When drawing a circle called from 
