@@ -155,7 +155,7 @@ class ExpSetupDualCartPole:
                     self.jointright = myCreateRevoluteJoint(bodyright,bodyB, (xshift+1.95*objLong,y+objWidth/2.0-dy),lowerAngle = -2*np.pi, upperAngle = 2*np.pi)
             elif(objBetween == 4):
                 pini = (bodyleft.position[0]+0.8, bodyleft.position[1])
-                rbodies,rlinks = createRope(pini,10,r=0.1,density=1)
+                rbodies,rlinks = createRope(pini,10,r=0.1,density=0.1)
                 self.link = rbodies
                 myCreateDistanceJoint(bodyleft,rbodies[0],dx=0.8)
                 myCreateDistanceJoint(bodyright,rbodies[1],dx=-0.8)

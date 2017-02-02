@@ -346,10 +346,10 @@ class CartPole:
         return self.box.angle
 
     def getPosition(self):
-        return self.box.position[0]
+        return self.circle.position[0]
 
     def getVelocity(self):
-        return self.box.linearVelocity
+        return self.circle.linearVelocity
 
     def update(self):
         self.angle = self.getAngle()

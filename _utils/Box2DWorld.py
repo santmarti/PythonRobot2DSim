@@ -340,7 +340,7 @@ def createGround(position=[0,-20], bMatplotlib = True):
 
     groundBox = Box2D.b2PolygonShape()
     groundBox.SetAsBox(100, 10)
-    fixture = groundBody.CreateFixturesFromShapes(groundBox)
+    fixture = groundBody.CreateFixturesFromShapes(groundBox,friction=100)
     
     if(bMatplotlib):
         createGlobalFigure()
@@ -373,7 +373,7 @@ def createCircle(position, r=0.3, bDynamic=True, density=1, bMatplotlib = True, 
         bodyDef.angularDamping = 30
 
     body = world.CreateBody(bodyDef)
-    fixture = body.CreateFixture(shape=Box2D.b2CircleShape(radius=r), density=density, friction=0.5)    
+    fixture = body.CreateFixture(shape=Box2D.b2CircleShape(radius=r), density=density, friction=200)    
     body.userData = {"name":name}
 
     if(bMatplotlib): 
