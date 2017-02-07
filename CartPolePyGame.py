@@ -3,7 +3,6 @@ sys.path.append('./_utils/')
 import pygame
 import pygame.surfarray as surfarray
 import PyGameUtils
-
 import Box2DWorld 
 from ExpRobotSetup import ExpSetupDualCartPole
 

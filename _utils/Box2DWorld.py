@@ -391,13 +391,16 @@ def createRope(position, nparts=10, r=0.3, density=1, bMatplotlib = True, name="
     firstBody.userData["name"]="ropepart"   
 
     prevBody = firstBody
+    rbodies = [prevBody]
+
     pos = position
     for i in range(nparts):
         body = createCircle( pos, r=r, density=density, bMatplotlib=bMatplotlib)
         jointList.append( myCreateDistanceJoint(prevBody,body) )
         pos = (pos[0]+1.55*r, pos[1])
         prevBody = body
-    return [firstBody, body], [jointList[0], jointList[-1]]
+        rbodies.append(body)
+    return rbodies, [jointList[0], jointList[-1]]
 
 
 def createBoxFixture(pos = (0,0), width=1.0, height=1.0, bDynamic=True, density = 1, collisionGroup = None, restitution=None):
