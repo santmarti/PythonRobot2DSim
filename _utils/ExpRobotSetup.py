@@ -9,6 +9,17 @@ from Arm import Arm
 from Robots import NaoRobot, CartPole, Epuck
 import random
 
+from time import strftime
+import logging
+ilogstep = 0
+
+def iniLog(file=None):
+    global ilogstep
+    if(file is None): file = strftime("data_%H_%M_%m_%d_%Y.log")
+    logging.basicConfig(filename=file, level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%I:%M:%S')
+    hdlr = logging.FileHandler(file)
+    ilogstep = 0
+
 def addWalls(pos, dx=3, dh=0, bHoriz=True, bVert=True, bMatplotlib=False): # WALL LIMITS of the world               
     x,y = pos 
     wl = 0.2
@@ -19,8 +30,8 @@ def addWalls(pos, dx=3, dh=0, bHoriz=True, bVert=True, bMatplotlib=False): # WAL
         createBox((x,y+5), w = 3, h = wl, bDynamic=False, bMatplotlib = bMatplotlib)
 
     if(bHoriz):
-        createBox((x-dx-wl,y+yh-1), w = wl, h = 2.8+dh, bDynamic=False, bMatplotlib = bMatplotlib)
-        createBox((x+dx+wl,y+yh-1), w = wl, h = 2.8+dh, bDynamic=False, bMatplotlib = bMatplotlib)
+        createBox((x-dx-wl,y+yh-1+dh/2), w = wl, h = 2.8+dh, bDynamic=False, bMatplotlib = bMatplotlib)
+        createBox((x+dx+wl,y+yh-1+dh/2), w = wl, h = 2.8+dh, bDynamic=False, bMatplotlib = bMatplotlib)
 
 
 # *****************************************************************
@@ -33,13 +44,13 @@ class ExpSetupRandall:
         global bDebug
         bDebug = debug        
         print "-------------------------------------------------"
-        self.steps = 0
         self.yini = -0.8
         self.radius = radius
         world.gravity = Box2D.b2Vec2(0,-10) 
         self.epucks = [Epuck(position=[-1+2*i,self.yini],frontIR=12, bHorizontal=True) for i in range(n)] 
-        addWalls((0,0),dx=3,dh=0.3,bVert=False)
+        addWalls((0,0),dx=4.5,dh=2,bVert=False)
         self.objs = []
+        iniLog()
         
     def controlIA(self):
         if(len(self.objs) < 1): return
@@ -49,12 +60,24 @@ class ExpSetupRandall:
         pepuck = epuck.getPosition()
         x = pobj[0]
         if(x < 0): x = 0
-        epuck.body.linearVelocity = [100*(x-pepuck[0]),0]
+        vx = 100*(x-pepuck[0])
+        if(vx > 100): vx = 100
+        if(vx < -100): vx = -100
+        epuck.body.linearVelocity = [vx,0]
         #self.setMotor(1,20*(pepuck[0]-x))
 
-    def update(self):
-        if(self.steps % 100 == 0): self.addReward()
-        self.steps += 1
+    def addReward(self):
+        vx = random.randint(-60, 60)
+        vy = random.randint(-100,-20)
+        vel=(vx,vy)
+        pos = [0,8]
+        obj = createCircle(position=pos, density=10, name="reward",r=self.radius, bMatplotlib=False)
+        obj.userData["energy"] = 1.0
+        self.objs.append(obj)
+        obj.linearVelocity = vel
+
+    def updateRewards(self):
+        if(len(self.objs) == 0): self.addReward()
         alive = []
         for o in self.objs:
             x,y = o.position
@@ -63,32 +86,31 @@ class ExpSetupRandall:
             for c in o.contacts:
                 cpos = c.contact.worldManifold.points[0]
                 if(vnorm(cpos)<0.01): continue
-                o.userData["energy"] -= 0.2
+                data = c.other.userData
+                if(data["name"]!="epuck"): continue
+                o.userData["energy"] -= 0.4
                 if(o.userData["energy"] <= 0): 
                     bRemove = True  
-                    data = c.other.userData
-                    if(data["name"]=="epuck"): data["reward"] += 1
+                    data["reward"] += 1
                     
             if(bRemove): world.DestroyBody(o)
             else: alive.append(o)
         self.objs = alive
 
-        self.controlIA()
 
+    def update(self):
+        global ilogstep
+        self.updateRewards()
+        self.controlIA()
+        strdata = ""
         for e in self.epucks:
             e.update() 
             x,y = e.body.position
+            strdata += "%f %f "%(x,y)
             e.body.position =  [x,self.yini]
 
-    def addReward(self):
-        vx = random.randint(-60, 60)
-        vy = random.randint(-100,-20)
-        vel=(vx,vy)
-        pos = [0,5]
-        obj = createCircle(position=pos, density=10, name="reward",r=self.radius, bMatplotlib=False)
-        obj.userData["energy"] = 1.0
-        self.objs.append(obj)
-        obj.linearVelocity = vel
+        if(ilogstep%5 == 0): logging.info(strdata)
+        ilogstep += 1
 
     def setVelocity(self,epuck=0, vel=[0,0]):
         self.epucks[epuck].body.linearVelocity = vel
@@ -143,12 +165,12 @@ class ExpSetupDualCartPole:
         print "Created Exp Dual Cart Pole Setup ", name, "Debug: ", bDebug
 
         #world = Box2D.b2World(gravity=[0.0, -10])
-        world.gravity = Box2D.b2Vec2(0,-100) 
+        world.gravity = Box2D.b2Vec2(0,-140) 
 
         self.name = name
         self.salient = []
         self.haptic = [0.1]*10
-        self.addWalls([0,0])
+        self.addWalls(pos=[0,0])
         self.xshift = xshift
         self.objBetween = objBetween
         xpos = 1.5
@@ -178,7 +200,7 @@ class ExpSetupDualCartPole:
                 rbodies,rlinks = createRope(pini,10,r=0.1,density=0.1)
                 self.link = rbodies
                 myCreateDistanceJoint(bodyleft,rbodies[0],dx=0.8)
-                myCreateDistanceJoint(bodyright,rbodies[1],dx=-0.8)
+                myCreateDistanceJoint(bodyright,rbodies[-1],dx=-0.8)
 
         if(bSelfCollisions): collisionGroup=None
         else: collisionGroup=-1
@@ -194,7 +216,7 @@ class ExpSetupDualCartPole:
         x,y = pos 
         wl = 0.2
         h = (5+1)/2.0
-        l = 4.45
+        l = 6
         createBox((x,y-1), w = l+2*wl, h = wl, bDynamic=False, bMatplotlib = bMatplotlib)
         #createBox((x,y+5), w = 3, h = wl, bDynamic=False, bMatplotlib = bMatplotlib)
         createBox((x-l-wl,y+h-1), w = wl, h = 2.8, bDynamic=False, bMatplotlib = bMatplotlib)
@@ -243,10 +265,11 @@ class ExpSetupDualCartPole:
             for b in self.link:
                 self.resetPositionBody(b)
         else:
-            bleft = self.link[0]
-            bleft.position = (bcartleft.position[0]+0.8, bcartleft.position[1])
-            bright = self.link[1]
-            bright.position = (bcartright.position[0]-0.8, bcartright.position[1])
+            pos = (bcartleft.position[0]+0.8, bcartleft.position[1])
+            for i in range(len(self.link)-2):
+                c = self.link[i+1]
+                c.position = (bcartleft.position[0]+0.8+0.1*(i+1), bcartleft.position[1])
+
 
     def getIRs(self):
         return [cart.getIR() for cart in self.carts]
