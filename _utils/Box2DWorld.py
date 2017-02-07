@@ -215,7 +215,7 @@ def drawEpuck(ax,shape,body):
     r = shape.radius
     pos = body.position
     drawCircle(ax,pos,r)
-    irangles = body.userData["frontIRAngles"]
+    irangles = body.userData["IRAngles"]
     nir = len(irangles)
     for a in [-np.pi/4,np.pi/4]:
         v = vrotate((1,0),body.angle+a) 
@@ -226,7 +226,7 @@ def drawEpuck(ax,shape,body):
     for k in range(nir):
         v = vrotate((1,0),body.angle + irangles[k])
         c = pos+[0.97*r*v[0],0.97*r*v[1]]
-        value = body.userData["frontIRValues"][k]
+        value = body.userData["IRValues"][k]
         if(value > 1): value = 1
         drawCircle(ax,c,r=0.07,color=[1-value,value,0])
 

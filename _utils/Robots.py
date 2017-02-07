@@ -43,6 +43,8 @@ class Epuck:
         self.motors = [0,0]
         self.bHorizontal = bHorizontal
 
+        self.bForceMotors = True
+
         self.frontIR = frontIR
         self.IR = IR(frontIR)
         self.body.userData["nIR"]=frontIR
@@ -50,6 +52,11 @@ class Epuck:
         self.body.userData["IRValues"] = self.IR.IRValues
         self.body.userData["reward"]=0
         
+    def getPosition(self):
+        return self.body.position
+
+    def getVelocity(self):
+        return self.body.linearVelocity
 
     def getIRs(self):
         return self.body.userData["IRValues"]
@@ -64,12 +71,12 @@ class Epuck:
         mLeft,mRight =  self.motors
         fangle,fdist = 50*(mRight - mLeft), 1000*(mLeft + mRight)
         d = (fdist*np.cos(angle), fdist*np.sin(angle)) 
-        #self.body.linearVelocity = f
 
         if(self.bHorizontal): d = vrotate(d,np.pi/2) 
 
-        self.body.ApplyTorque(fangle,wake=True)
-        self.body.ApplyForce(force=d,point=self.body.worldCenter,wake=False)
+        if(self.bForceMotors):
+            self.body.ApplyTorque(fangle,wake=True)
+            self.body.ApplyForce(force=d,point=self.body.worldCenter,wake=False)
 
         if(self.bHorizontal):
             self.body.angularVelocity = 0
@@ -341,6 +348,9 @@ class CartPole:
 
     def setMotorSpeed(self,speed):  
         self.joint.motorSpeed = speed
+
+    def getAngle(self):
+        return self.IR.IRValues[0]
 
     def getAngle(self):
         return self.box.angle

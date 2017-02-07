@@ -7,7 +7,7 @@ from Box2DWorld import (world, arm, createBox, createCircle, createTri, createRo
 from VectorFigUtils import vnorm,dist
 from Arm import Arm
 from Robots import NaoRobot, CartPole, Epuck
-
+import random
 
 def addWalls(pos, dx=3, dh=0, bHoriz=True, bVert=True, bMatplotlib=False): # WALL LIMITS of the world               
     x,y = pos 
@@ -29,17 +29,29 @@ def addWalls(pos, dx=3, dh=0, bHoriz=True, bVert=True, bMatplotlib=False): # WAL
 
 class ExpSetupRandall:
 
-    def __init__(self, n = 2, debug = False):
+    def __init__(self, n = 2, radius=0.2, debug = False):
         global bDebug
         bDebug = debug        
         print "-------------------------------------------------"
         self.steps = 0
         self.yini = -0.8
+        self.radius = radius
         world.gravity = Box2D.b2Vec2(0,-10) 
         self.epucks = [Epuck(position=[-1+2*i,self.yini],frontIR=12, bHorizontal=True) for i in range(n)] 
         addWalls((0,0),dx=3,dh=0.3,bVert=False)
         self.objs = []
         
+    def controlIA(self):
+        if(len(self.objs) < 1): return
+        obj = self.objs[-1]
+        epuck = self.epucks[1]
+        pobj = obj.position
+        pepuck = epuck.getPosition()
+        x = pobj[0]
+        if(x < 0): x = 0
+        epuck.body.linearVelocity = [100*(x-pepuck[0]),0]
+        #self.setMotor(1,20*(pepuck[0]-x))
+
     def update(self):
         if(self.steps % 100 == 0): self.addReward()
         self.steps += 1
@@ -61,17 +73,25 @@ class ExpSetupRandall:
             else: alive.append(o)
         self.objs = alive
 
+        self.controlIA()
+
         for e in self.epucks:
             e.update() 
             x,y = e.body.position
             e.body.position =  [x,self.yini]
 
     def addReward(self):
+        vx = random.randint(-60, 60)
+        vy = random.randint(-100,-20)
+        vel=(vx,vy)
         pos = [0,5]
-        obj = createCircle(position=pos, density=10, name="reward",r=0.45, bMatplotlib=False)
+        obj = createCircle(position=pos, density=10, name="reward",r=self.radius, bMatplotlib=False)
         obj.userData["energy"] = 1.0
         self.objs.append(obj)
-        obj.linearVelocity = (0,-20)
+        obj.linearVelocity = vel
+
+    def setVelocity(self,epuck=0, vel=[0,0]):
+        self.epucks[epuck].body.linearVelocity = vel
 
     def setMotor(self,epuck=0, motor=1):
         self.epucks[epuck].motors = [motor,0]
@@ -227,7 +247,9 @@ class ExpSetupDualCartPole:
             bleft.position = (bcartleft.position[0]+0.8, bcartleft.position[1])
             bright = self.link[1]
             bright.position = (bcartright.position[0]-0.8, bcartright.position[1])
-        
+
+    def getIRs(self):
+        return [cart.getIR() for cart in self.carts]
         
     def getAngles(self):
         return [cart.getAngle() for cart in self.carts]
@@ -254,11 +276,11 @@ class ExpSetupDualCartPole:
 class ExpSetupNao:
     max_motor_speed = 30
 
-    def __init__(self, pos_obj = (0,1.3), pos_nao = (0,0), obj_type = "circle", salientMode = "center", name="simple", debug = False, bTwoArms=True, bSelfCollisions=True):
+    def __init__(self, pos_obj = (0,1.3), pos_nao = (0,0), obj_type = "circle", salientMode = "center", name="bimanual", debug = False, bTwoArms=True, bSelfCollisions=True):
         global bDebug
         bDebug = debug        
-        print "-------------------------------------------------"
-        print "Created Exp Bimanual Setup: ", name, "Debug: ", bDebug
+        print "-------------------------------------------------------------"
+        print "Created Exp Bimanual Setup: ", name, "Debug: ", bDebug, "Object"
         self.name = name.lower()
         self.dm_lim = 1
         self.v_lim = 0.3
@@ -354,13 +376,15 @@ class ExpSetupNao:
         return "obj"
 
     def updateSalient(self):
+        naosalient = self.nao.getSalient() # copy of the pointer
+        self.salient = [s for s in naosalient] 
+
+        if(self.obj_type not in ["box","circle"]): return
+        
         b = self.obj.position
         b = [round(e,2) for e in b]
         body = self.obj
         shape = self.obj.fixtures[-1].shape
-
-        naosalient = self.nao.getSalient() # copy of the pointer
-        self.salient = [s for s in naosalient] 
 
         if(self.salientMode == "center"):
             self.salient += [(b[0],b[1])]
