@@ -44,27 +44,29 @@ class ExpSetupRandall:
         global bDebug
         bDebug = debug        
         print "-------------------------------------------------"
-        self.yini = -0.8
+        self.yini = -1.2
         self.radius = radius
         world.gravity = Box2D.b2Vec2(0,-10) 
         self.epucks = [Epuck(position=[-1+2*i,self.yini],frontIR=12, bHorizontal=True) for i in range(n)] 
-        addWalls((0,0),dx=4.5,dh=2,bVert=False)
+
+        self.epucks[0].userData["score"] = 0
+        self.epucks[1].userData["score"] = 0
+
+        addWalls((0,0),dx=5.7,dh=2,bVert=False)
         self.objs = []
         iniLog()
+        self.box = None
+        self.setOcclusion()
+        self.phase_names = ["Training","Easy","Intermmediate","Difficult"]
         
-    def controlIA(self):
-        if(len(self.objs) < 1): return
-        obj = self.objs[-1]
-        epuck = self.epucks[1]
-        pobj = obj.position
-        pepuck = epuck.getPosition()
-        x = pobj[0]
-        if(x < 0): x = 0
-        vx = 100*(x-pepuck[0])
-        if(vx > 100): vx = 100
-        if(vx < -100): vx = -100
-        epuck.body.linearVelocity = [vx,0]
-        #self.setMotor(1,20*(pepuck[0]-x))
+    def setOcclusion(self):
+        #if(self.box is not None):
+            
+        w,h,y = 4.5,1,3
+        self.box = createBox([0,y], w = w, h = h, bDynamic=False, bMatplotlib=False, bCollideNoOne=True, name="occlusion") 
+        self.box.userData["visible"] = 1.0
+        self.box.userData["height"] = h
+        self.box.userData["y"] = y
 
     def addReward(self):
         vx = random.randint(-60, 60)
@@ -73,6 +75,7 @@ class ExpSetupRandall:
         pos = [0,8]
         obj = createCircle(position=pos, density=10, name="reward",r=self.radius, bMatplotlib=False)
         obj.userData["energy"] = 1.0
+        obj.userData["visible"] = 1.0
         self.objs.append(obj)
         obj.linearVelocity = vel
 
@@ -83,14 +86,29 @@ class ExpSetupRandall:
             x,y = o.position
             bRemove = False
             if(y < -2 or y > 8): bRemove = True
+
+            box = self.box
+
+            if(box.userData["visible"]):
+                h = box.userData["height"]
+                if(y < box.position[1]+h and y > box.position[1]-h):
+                    o.userData["visible"] = 0
+                else:
+                    o.userData["visible"] = 1
+
             for c in o.contacts:
                 cpos = c.contact.worldManifold.points[0]
                 if(vnorm(cpos)<0.01): continue
                 data = c.other.userData
                 if(data["name"]!="epuck"): continue
-                o.userData["energy"] -= 0.4
+                o.userData["energy"] -= 0.5                
                 if(o.userData["energy"] <= 0): 
+                    dx = abs(x - c.other.position[0])
+                    if(dx > 4): dx = 4
+                    dx = dx/4
+
                     bRemove = True  
+                    data["score"] += dx
                     data["reward"] += 1
                     
             if(bRemove): world.DestroyBody(o)
@@ -101,7 +119,6 @@ class ExpSetupRandall:
     def update(self):
         global ilogstep
         self.updateRewards()
-        self.controlIA()
         strdata = ""
         for e in self.epucks:
             e.update() 

@@ -51,6 +51,7 @@ class Epuck:
         self.body.userData["IRAngles"] = self.IR.IRAngles
         self.body.userData["IRValues"] = self.IR.IRValues
         self.body.userData["reward"]=0
+        self.userData = self.body.userData
         
     def getPosition(self):
         return self.body.position

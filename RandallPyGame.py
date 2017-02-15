@@ -13,12 +13,8 @@ from ExpRobotSetup import ExpSetupRandall
 #PYGAME initialization
 #***************************
 pygame.init()
-
-
-PyGameUtils.setScreenSize(480,640)
-
+PyGameUtils.setScreenSize(800,640)
 box2dWH = (PyGameUtils.SCREEN_WIDTH, PyGameUtils.SCREEN_HEIGHT)
-
 print box2dWH 
 
 #flags = FULLSCREEN | DOUBLEBUF

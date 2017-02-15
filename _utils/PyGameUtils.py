@@ -57,10 +57,16 @@ def draw_polygon(screen, vertices, color = (0,255,0), width=3):
     pygame.draw.polygon(screen, color, vertices, width)
         
 def box2d_draw_polygon(screen, polygon, body, fixture, color = [], width=3):
+    bDraw = 1
     if(len(color)==0): color = colors[body.type]
     vertices=[(body.transform*v)*PPM for v in polygon.vertices]
     if(body.userData["name"]=="bar"):
         draw_polygon(screen, vertices, (10,10,100), 2)
+    elif(body.userData["name"]=="occlusion"):
+        bDraw = body.userData["visible"]
+        if(bDraw):
+            draw_polygon(screen, vertices, (100,10,20), 0)       
+            draw_polygon(screen, vertices, (200,10,20), 3)       
     elif(body.userData["name"]=="boxA"):
         draw_polygon(screen, vertices, (100,10,20), 0)       
         draw_polygon(screen, vertices, (200,10,20), 3)       
@@ -128,11 +134,16 @@ def box2d_draw_circle(screen, circle, body, fixture, color=[], width=3):
     pos=body.position
     position=body.position*PPM
 
+    bDraw = True
+    if("visible" in body.userData):
+        if(not body.userData["visible"]): bDraw = False
+
     if(body.userData["name"] == "reward"): 
-        e = body.userData["energy"]
-        width,color = 6, [80-80*e,80*e,0]
-        draw_circle(screen, position, radius=int(r*PPM), color=color, width=0)
-        width,color = 6, [255-255*e,255*e,0]
+        if(bDraw):
+            e = body.userData["energy"]
+            width,color = 6, [80-80*e,80*e,0]
+            draw_circle(screen, position, radius=int(r*PPM), color=color, width=0)
+            width,color = 6, [255-255*e,255*e,0]
     elif(body.userData["name"] == "epuck"):
         width,color = 4, [55,200,225]
     if(body.userData["name"] == "ball"): 
@@ -140,7 +151,8 @@ def box2d_draw_circle(screen, circle, body, fixture, color=[], width=3):
         draw_circle(screen, position, radius=int(r*PPM), color=color, width=0)
         width,color = 6, [10,120,0]
 
-    draw_circle(screen, position, radius=int(r*PPM), color=color, width=width)
+
+    if(bDraw): draw_circle(screen, position, radius=int(r*PPM), color=color, width=width)
 
     if(body.userData["name"] == "epuck"): drawEpuck(screen,r,body,color,width)
     elif(body.userData["name"] == "wheel"): drawWheel(screen,r,body,color,width)
