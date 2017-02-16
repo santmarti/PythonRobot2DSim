@@ -1,25 +1,20 @@
 import numpy as np
-import itertools
 import math
 import matplotlib.pyplot as plt
 
-font = {'family' : 'Bitstream Vera Sans',
-#        'weight' : 'bold',
-        'size'   : 20}
+font = {'family': 'Bitstream Vera Sans', 'size': 20}
+x_lim, y_lim = (-4, 4), (-1.5, 5.5)
+mycolors, mylabels, myf = [], [], -1
 
-x_lim,y_lim = (-4, 4),(-1.5, 5.5)
-
-mycolors,mylabels,myf = [],[],-1
-
-def savefig(fig,ax,name='img.png'):
+def savefig(fig, ax, name='img.png'):
     plt.show()
     extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
     fig.savefig(name, dpi=300, format='png',bbox_inches=extent)
 
-def makeFigure(axes = [], size=[]):
+def makeFigure(axes=[], size=[]):
     global x_lim,y_lim
-    if(len(axes)>0): 
-        x_lim,y_lim=(axes[0],axes[1]),(axes[2],axes[3])
+    if(len(axes) > 0):
+        x_lim, y_lim = (axes[0], axes[1]), (axes[2], axes[3])
 
     plt.close()
     if(len(size)>0): fig = plt.figure(figsize=size)
@@ -48,7 +43,11 @@ def vnorm(u):
     return np.linalg.norm(u)
 
 def vangle(u,v):
-    c = np.dot(u,v)/np.linalg.norm(u)/np.linalg.norm(v)     # -> cosine of the angle
+    unorm = np.linalg.norm(u)
+    vnorm = np.linalg.norm(v)
+    if(unorm == 0 or vnorm == 0):
+        return 0
+    c = np.dot(u, v) / unorm / vnorm
     angle = np.arccos(np.clip(c, -1, 1))
     return angle
 

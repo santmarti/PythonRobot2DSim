@@ -1,11 +1,10 @@
 import numpy as np
 import Box2D
 from Box2DWorld import (world, arm, createBox, createCircle, createTri, createRope,
-                        createBoxFixture, myCreateRevoluteJoint, myCreateDistanceJoint,
+                        myCreateRevoluteJoint, myCreateDistanceJoint,
                         myCreateLinearJoint, collisions)
 
-from VectorFigUtils import vnorm,dist
-from Arm import Arm
+from VectorFigUtils import vnorm, dist
 from Robots import NaoRobot, CartPole, Epuck
 import random
 
@@ -15,34 +14,36 @@ ilogstep = 0
 
 def iniLog(file=None):
     global ilogstep
-    if(file is None): file = strftime("data_%H_%M_%m_%d_%Y.log")
+    if(file is None):
+        file = strftime("data_%H_%M_%m_%d_%Y.log")
     logging.basicConfig(filename=file, level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%I:%M:%S')
-    hdlr = logging.FileHandler(file)
+    logging.FileHandler(file)
     ilogstep = 0
 
-def addWalls(pos, dx=3, dh=0, bHoriz=True, bVert=True, bMatplotlib=False): # WALL LIMITS of the world               
-    x,y = pos 
+def addWalls(pos, dx=3, dh=0, bHoriz=True, bVert=True, bMatplotlib=False):               
+    x, y = pos
     wl = 0.2
-    yh = (5+1)/2.0
+    yh = (5 + 1) / 2.0
 
     if(bVert):
-        createBox((x,y-1), w = 3, h = wl, bDynamic=False, bMatplotlib = bMatplotlib)
-        createBox((x,y+5), w = 3, h = wl, bDynamic=False, bMatplotlib = bMatplotlib)
+        createBox((x, y - 1), w=3, h=wl, bDynamic=False, bMatplotlib=bMatplotlib)
+        createBox((x, y + 5), w=3, h=wl, bDynamic=False, bMatplotlib=bMatplotlib)
 
     if(bHoriz):
-        createBox((x-dx-wl,y+yh-1+dh/2), w = wl, h = 2.8+dh, bDynamic=False, bMatplotlib = bMatplotlib)
-        createBox((x+dx+wl,y+yh-1+dh/2), w = wl, h = 2.8+dh, bDynamic=False, bMatplotlib = bMatplotlib)
+        createBox((x - dx - wl, y + yh - 1 + dh / 2), w=wl, h=2.8 + dh, bDynamic=False, bMatplotlib=bMatplotlib)
+        createBox((x + dx + wl, y + yh - 1 + dh / 2), w=wl, h=2.8 + dh, bDynamic=False, bMatplotlib=bMatplotlib)
 
 
 # *****************************************************************
-# Experimental Setup Randall Beer Agent
+# Experimental Setup Randall 1D Agent
 # *****************************************************************
 
-class ExpSetupRandall:
+class ExpSetupRandall():
+    """Experimental setup including 2 agents in a 1D horizontal line."""
 
-    def __init__(self, n = 2, radius=0.2, debug = False):
+    def __init__(self, n=2, radius=0.2, debug=False):
         global bDebug
-        bDebug = debug        
+        bDebug = debug
         print "-------------------------------------------------"
         self.yini = -1.2
         self.radius = radius
@@ -58,59 +59,63 @@ class ExpSetupRandall:
         self.box = None
         self.setOcclusion()
         self.phase_names = ["Training","Easy","Intermmediate","Difficult"]
-        
+
     def setOcclusion(self):
-        #if(self.box is not None):
-            
-        w,h,y = 4.5,1,3
-        self.box = createBox([0,y], w = w, h = h, bDynamic=False, bMatplotlib=False, bCollideNoOne=True, name="occlusion") 
+        # if(self.box is not None):
+        w, h, y = 4.5, 1, 3
+        self.box = createBox([0, y], w=w, h=h, bDynamic=False, bMatplotlib=False, bCollideNoOne=True, name="occlusion") 
         self.box.userData["visible"] = 1.0
         self.box.userData["height"] = h
         self.box.userData["y"] = y
 
     def addReward(self):
         vx = random.randint(-60, 60)
-        vy = random.randint(-100,-20)
-        vel=(vx,vy)
-        pos = [0,8]
-        obj = createCircle(position=pos, density=10, name="reward",r=self.radius, bMatplotlib=False)
+        vy = random.randint(-100, -20)
+        vel = (vx, vy)
+        pos = [0, 8]
+        obj = createCircle(position=pos, density=10, name="reward", r=self.radius, bMatplotlib=False)
         obj.userData["energy"] = 1.0
         obj.userData["visible"] = 1.0
         self.objs.append(obj)
         obj.linearVelocity = vel
 
     def updateRewards(self):
-        if(len(self.objs) == 0): self.addReward()
+        if(len(self.objs) == 0):
+            self.addReward()
         alive = []
         for o in self.objs:
-            x,y = o.position
+            x, y = o.position
             bRemove = False
-            if(y < -2 or y > 8): bRemove = True
+            if(y < -2 or y > 8):
+                bRemove = True
 
             box = self.box
 
             if(box.userData["visible"]):
                 h = box.userData["height"]
-                if(y < box.position[1]+h and y > box.position[1]-h):
+                if(y < box.position[1] + h and y > box.position[1] - h):
                     o.userData["visible"] = 0
                 else:
                     o.userData["visible"] = 1
 
             for c in o.contacts:
                 cpos = c.contact.worldManifold.points[0]
-                if(vnorm(cpos)<0.01): continue
+                if(vnorm(cpos)<0.01):
+                    continue
                 data = c.other.userData
-                if(data["name"]!="epuck"): continue
-                o.userData["energy"] -= 0.5                
-                if(o.userData["energy"] <= 0): 
+                if(data["name"] != "epuck"):
+                    continue
+                o.userData["energy"] -= 0.5
+                if(o.userData["energy"] <= 0):
                     dx = abs(x - c.other.position[0])
-                    if(dx > 4): dx = 4
-                    dx = dx/4
+                    if(dx > 4):
+                        dx = 4
+                    dx = dx / 4
 
-                    bRemove = True  
+                    bRemove = True 
                     data["score"] += dx
                     data["reward"] += 1
-                    
+
             if(bRemove): world.DestroyBody(o)
             else: alive.append(o)
         self.objs = alive
@@ -151,17 +156,22 @@ class ExpSetupRandall:
 
 class ExpSetupEpuck:
 
-    def __init__(self, n = 1, debug = False):
+    def __init__(self, n=1, debug=False):
         global bDebug
-        bDebug = debug        
+        bDebug = debug
         print "-------------------------------------------------"
-        #world.gravity = Box2D.b2Vec2(0,-100) 
-        self.epucks = [Epuck(position=[0,0]) for _ in range(n)] 
-        addWalls((0,0))
+        self.epucks = [Epuck(position=[0, 0]) for _ in range(n)]
+        addWalls((0, 0))
 
     def update(self):
         for e in self.epucks:
-            e.update() 
+            e.update()
+            pos = e.getPosition()
+
+            for i, g in enumerate(e.GradSensors):
+                if(i == 0):
+                    centers = [o.getPosition() for o in self.epucks if o != e]
+                    g.update(pos, e.getAngle(), centers)
 
     def setMotors(self,epuck=0, motors=[10,10]):
         self.epucks[epuck].motors = motors
@@ -181,23 +191,22 @@ class ExpSetupDualCartPole:
         print "-------------------------------------------------"
         print "Created Exp Dual Cart Pole Setup ", name, "Debug: ", bDebug
 
-        #world = Box2D.b2World(gravity=[0.0, -10])
-        world.gravity = Box2D.b2Vec2(0,-140) 
+        world.gravity = Box2D.b2Vec2(0, -140)
 
         self.name = name
         self.salient = []
-        self.haptic = [0.1]*10
-        self.addWalls(pos=[0,0])
+        self.haptic = [0.1] * 10
+        self.addWalls(pos=[0, 0])
         self.xshift = xshift
         self.objBetween = objBetween
         xpos = 1.5
 
-        self.carts = [CartPole(name="cartLeft",position=(-xpos+xshift,-0.3),bHand=1,d=0.8,collisionGroup = 1), CartPole(name="cartRight",position=(xpos+xshift,-0.3),bHand=2,d=0.8,collisionGroup = 2)]
-        
-        if(objWidth > 0): 
+        self.carts = [CartPole(name="cartLeft", position=(-xpos + xshift, -0.3), bHand=1, d=0.8, collisionGroup=1), CartPole(name="cartRight",position=(xpos+xshift,-0.3),bHand=2,d=0.8,collisionGroup = 2)]
+
+        if(objWidth > 0):
             bodyleft, bodyright = self.carts[0].box, self.carts[1].box
-            if(objBetween == 1): 
-                self.link = [createBox( (xshift,2), xpos*0.8, objWidth, bDynamic=True, restitution = 0.8)]
+            if(objBetween == 1):
+                self.link = [createBox((xshift, 2), xpos * 0.8, objWidth, bDynamic=True, restitution=0.8)]
             elif(objBetween >= 2 and objBetween <= 3): 
                 y = 1.53
                 if(objBetween == 3): objLong = xpos*0.8 / 3.5
@@ -221,7 +230,7 @@ class ExpSetupDualCartPole:
 
         if(bSelfCollisions): collisionGroup=None
         else: collisionGroup=-1
-      
+
         if(bDebug):
             print "Exp Setup created", "salient points: ", self.salient 
 
@@ -335,7 +344,7 @@ class ExpSetupNao:
         self.name_robot = "simple"    
         bOppositeArms = False      
         self.objs = []
-                     
+
         if(self.name == "bimanual"):
             self.name_robot = "human" 
             addWalls(pos_nao)
