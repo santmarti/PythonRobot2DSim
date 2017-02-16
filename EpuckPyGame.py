@@ -16,6 +16,8 @@ box2dWH = (PyGameUtils.SCREEN_WIDTH, PyGameUtils.SCREEN_HEIGHT)
 #PYGAME initialization
 #***************************
 pygame.init()
+PyGameUtils.setScreenSize(640,480)
+box2dWH = (PyGameUtils.SCREEN_WIDTH, PyGameUtils.SCREEN_HEIGHT)
 
 #flags = FULLSCREEN | DOUBLEBUF
 #screen = pygame.display.set_mode(box2dWH, flags, 8)

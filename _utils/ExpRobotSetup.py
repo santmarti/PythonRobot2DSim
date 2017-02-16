@@ -20,16 +20,16 @@ def iniLog(file=None):
     logging.FileHandler(file)
     ilogstep = 0
 
-def addWalls(pos, dx=3, dh=0, bHoriz=True, bVert=True, bMatplotlib=False):               
+def addWalls(pos, dx=3, dh=0, h=2.8, th=0, bHoriz=True, bVert=True, bMatplotlib=False):               
     x, y = pos
     wl = 0.2
     yh = (5 + 1) / 2.0
     if(bVert):
-        createBox((x, y - 1), w=3, h=wl, bDynamic=False, bMatplotlib=bMatplotlib)
-        createBox((x, y + 5), w=3, h=wl, bDynamic=False, bMatplotlib=bMatplotlib)
+        createBox((x, y - 1 - dh + th), w=h + dh + wl + th, h=wl, bDynamic=False, bMatplotlib=bMatplotlib)
+        createBox((x, y + 5 + dh + th), w=h + dh + wl + th, h=wl, bDynamic=False, bMatplotlib=bMatplotlib)
     if(bHoriz):
-        createBox((x - dx - wl, y + yh - 1 + dh / 2), w=wl, h=2.8 + dh, bDynamic=False, bMatplotlib=bMatplotlib)
-        createBox((x + dx + wl, y + yh - 1 + dh / 2), w=wl, h=2.8 + dh, bDynamic=False, bMatplotlib=bMatplotlib)
+        createBox((x - dx - wl, y + yh - 1 + dh / 2 + th), w=wl, h=h + dh, bDynamic=False, bMatplotlib=bMatplotlib)
+        createBox((x + dx + wl, y + yh - 1 + dh / 2 + th), w=wl, h=h + dh, bDynamic=False, bMatplotlib=bMatplotlib)
 
 def addReward(who, pos=(0,0), vel=(0,0), bDynamic=True, bCollideNoOne=False, bMatplotlib=False):
     obj = createCircle(position=pos, bDynamic=bDynamic, bCollideNoOne=bCollideNoOne, density=10, name="reward", r=0.2, bMatplotlib=bMatplotlib)
@@ -79,8 +79,6 @@ class ExpSetupRandall():
         vx = random.randint(-60, 60)
         vy = random.randint(-100, -20)
         addReward(self, pos=[0, 8], vel=(vx, vy))
-
-
 
     def updateRewards(self):
         if(len(self.objs) == 0):
@@ -169,10 +167,14 @@ class ExpSetupEpuck:
         global bDebug
         bDebug = debug
         print "-------------------------------------------------"
-        self.epucks = [Epuck(position=[0, 0], nother=2) for _ in range(n)]
-        addWalls((0, 0))
+        th=.2
+        positions = [(-3, 2+th), (3, 2+th)]
+        angles = [2*np.pi,np.pi]
+        self.epucks = [Epuck(position=positions[i], angle=angles[i], nother=2) for i in range(n)]
+        addWalls((0, 0), dx=3.75, dh=0.1, h=3, th=th)
         self.objs = []
-        addReward(self, pos=(0, 0), vel=(0, 0), bDynamic=False, bCollideNoOne=True)
+        addReward(self, pos=(0, 4+th), vel=(0, 0), bDynamic=False, bCollideNoOne=True)
+        addReward(self, pos=(0, 0+th), vel=(0, 0), bDynamic=False, bCollideNoOne=True)
 
 
 

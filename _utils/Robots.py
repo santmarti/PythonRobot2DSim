@@ -66,12 +66,12 @@ class IR(object):
 class Epuck(object):
     """Epuck robot class: two motors and infrared sensors."""
 
-    def __init__(self, position=(0, 0), r=0.48, bHorizontal=False, bMatplotlib=False, frontIR=6, nother=0):
+    def __init__(self, position=(0, 0), angle=np.pi / 2, r=0.48, bHorizontal=False, bMatplotlib=False, frontIR=6, nother=0):
         """Init of userData map with relevant values."""
 
         self.ini_pos = position
         self.body = createCircle(position, r=r, bDynamic=True, bMatplotlib=False, name="epuck")
-        self.body.angle = np.pi / 2
+        self.body.angle = angle
         self.r = r
         # self.body = createBox(position, w=0.2,h=0.2,bDynamic=True, bMatplotlib=True)
         self.motors = [0, 0]

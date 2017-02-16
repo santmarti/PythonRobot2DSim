@@ -435,7 +435,7 @@ def createBoxFixture(pos = (0,0), width=1.0, height=1.0, bDynamic=True, density 
     else:       fixtureDef.density = 0            
     return fixtureDef
 
-def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, bDynamic=True, density=1, damping = 0, collisionGroup = None, bMatplotlib = True, restitution=None, bCollideNoOne=False, name=""):
+def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, bDynamic=True, density=1, damping = 0, collisionGroup = None, bMatplotlib = False, restitution=None, bCollideNoOne=False, name=""):
     global world
     bodyDef = Box2D.b2BodyDef()
     bodyDef.position = position
