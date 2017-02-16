@@ -7,9 +7,8 @@ import Box2D
 import math
 import matplotlib.pyplot as plt
 from matplotlib import animation
-import itertools
-import VectorFigUtils 
-from VectorFigUtils import drawBox, drawCircle, makeFigure, vnorm, vrotate, dist, vangleSign, computePointsAngle
+import VectorFigUtils
+from VectorFigUtils import drawBox, drawCircle, makeFigure, vnorm, vrotate, vangle, dist, vangleSign, computePointsAngle
 
 
 # ********************************************
@@ -103,11 +102,11 @@ def queryPoint(p):
 
 # ********************************************
 # Basic Creation Box2D Functions that can use the global figure to plot
-fig,ax = None,None
+fig, ax = None, None
 
 def createGlobalFigure():
-    global fig,ax
-    if(fig == None):
+    global fig, ax
+    if(fig is not None):
         plt.ioff()
         fig = plt.figure()
         ax = plt.axes(xlim=VectorFigUtils.x_lim, ylim=VectorFigUtils.y_lim)
@@ -121,32 +120,41 @@ def step():
 
 def plotWorld(ax, alpha=0.3, nao=None, obj=None, bDrawGround=False, color='b', centers=[], specials=[], cradius=0.1, ccolor='r', label='_'):
     global world
-    if(nao and obj):
-        pobj = [obj.position[0], obj.position[1]]
-        pnao = nao.ini_pos
-    #ax.plot([pobj[0],pnao[0]], [pobj[1],pnao[1]], linestyle='--', color='g', lw=2)
+    # ax.plot([pobj[0],pnao[0]], [pobj[1],pnao[1]], linestyle='--', color='g', lw=2)
     for body in world.bodies:
         name = body.userData["name"]
         for fixture in body.fixtures:
             shape = fixture.shape
             if(body.active):
-                if(isinstance(shape,Box2D.b2PolygonShape)): 
-                    if(name == "boxA"): drawBox2D(ax,body,fixture, color='g',alpha=1)
-                    elif(name == "boxB"): drawBox2D(ax,body,fixture, color='r',alpha=1)   
-                    elif(name == "bar"): drawBox2D(ax,body,fixture, color=color,alpha=0.1)                                                
+                if(isinstance(shape, Box2D.b2PolygonShape)):
+                    if(name == "boxA"):
+                        drawBox2D(ax, body, fixture, color='g', alpha=1)
+                    elif(name == "boxB"):
+                        drawBox2D(ax, body, fixture, color='r', alpha=1)
+                    elif(name == "bar"):
+                        drawBox2D(ax, body, fixture, color=color, alpha=0.1)
                     else:
-                        if(fixture.density == 0.0): drawBox2D(ax,body,fixture,color=color,alpha=0.25)
-                        else:                       drawBox2D(ax,body,fixture,color=color,alpha=alpha)    
-                if(isinstance(shape,Box2D.b2CircleShape)): 
-                    if(name == "epuck"): drawEpuck(ax,shape,body)
-                    elif(name == "reward"): drawCircle(ax,body.position,shape.radius,color=[0.5,0.7,0.3])
-                    elif(name == "toy"): drawCircle(ax,body.position,shape.radius)
-                    else: drawWheel(ax,shape,body)
-            else:  
-                if(isinstance(shape,Box2D.b2PolygonShape)): drawBox2D(ax,body,fixture,color=color,alpha=0.25,fill=False,linestyle='dashed')
-                if(isinstance(shape,Box2D.b2CircleShape)):  drawCircle(ax,body.position,0.3,fill=False,linestyle='dashed')
+                        if(fixture.density == 0.0):
+                            drawBox2D(ax, body, fixture, color=color, alpha=0.25)
+                        else:
+                            drawBox2D(ax, body, fixture, color=color, alpha=alpha)
+                if(isinstance(shape, Box2D.b2CircleShape)):
+                    if(name == "epuck"):
+                        drawEpuck(ax, shape, body)
+                    elif(name == "reward"):
+                        drawCircle(ax, body.position, shape.radius, color=[0.5, 0.7, 0.3])
+                    elif(name == "toy"):
+                        drawCircle(ax, body.position, shape.radius)
+                    else:
+                        drawWheel(ax, shape, body)
+            else:
+                if(isinstance(shape, Box2D.b2PolygonShape)):
+                    drawBox2D(ax, body, fixture, color=color, alpha=0.25, fill=False, linestyle='dashed')
+                if(isinstance(shape, Box2D.b2CircleShape)):
+                    drawCircle(ax, body.position, 0.3, fill=False, linestyle='dashed')
 
-    if(len(centers)>0): plotVectors(ax,centers, cradius=cradius, specials=specials, ccolor=ccolor, label=label)
+    if(len(centers) > 0):
+        plotVectors(ax, centers, cradius=cradius, specials=specials, ccolor=ccolor, label=label)
     plt.grid()
 
 
@@ -158,10 +166,13 @@ def init():
     circles.set_data([], [])
     return lines, circles
 
-def frameWorld(i):      # animation function.  This is called sequentially
-    global world, TIME_STEP, vel_iters, pos_iters, ax, fig                
-    plotWorld(ax,nao)                                            
-    if(arm): arm.update()
+
+def frameWorld(i):
+    """Function for animations in Matplotlib called sequentially."""
+    global world, TIME_STEP, vel_iters, pos_iters, ax, fig
+    plotWorld(ax, nao)
+    if(arm):
+        arm.update()
     world.Step(TIME_STEP, vel_iters, pos_iters)
     world.ClearForces()
     return []
@@ -177,10 +188,9 @@ def init():
 def animateWorld():
     global world, fig, ax
     createGlobalFigure()
-    anim = animation.FuncAnimation(fig, frameWorld, init_func=init,frames=150, interval=20, blit=True)
-    return anim    
+    anim = animation.FuncAnimation(fig, frameWorld, init_func=init, frames=150, interval=20, blit=True)
+    return anim
 
-        
 
 # ********************************************
 # Creation and plotting Utils
@@ -332,16 +342,16 @@ def myCreateRevoluteJoint(bodyA,bodyB,anchor,lowerAngle = -0.7 * np.pi, upperAng
                 )
 
 
-def createGround(position=[0,-20], bMatplotlib = True):
+def createGround(position=[0,-20], bMatplotlib=True):
     global world
     groundBodyDef = Box2D.b2BodyDef()
-    groundBodyDef.position = Box2D.b2Vec2(0,-20)   
+    groundBodyDef.position = Box2D.b2Vec2(0, -20)
     groundBody = world.CreateBody(groundBodyDef)
 
     groundBox = Box2D.b2PolygonShape()
     groundBox.SetAsBox(100, 10)
     fixture = groundBody.CreateFixturesFromShapes(groundBox,friction=100)
-    
+
     if(bMatplotlib):
         createGlobalFigure()
         shape = fixture.shape
@@ -352,18 +362,14 @@ def createGround(position=[0,-20], bMatplotlib = True):
     return groundBody
 
 
-def createCircle(position, r=0.3, bDynamic=True, density=1, bMatplotlib = True, name=""):
+def createCircle(position, r=0.3, bDynamic=True, bCollideNoOne=False, density=1, bMatplotlib=True, name=""):
     global world, fig, ax
     bodyDef = Box2D.b2BodyDef()
-    fixtureDef = Box2D.b2FixtureDef()
+    bodyDef.position = position
     if bDynamic:
         bodyDef.type = Box2D.b2_dynamicBody
-        fixtureDef.density = density
     else:
         bodyDef.type = Box2D.b2_staticBody
-        fixtureDef.density = 0
-
-    bodyDef.position = position
 
     if(abs(world.gravity[1]) > 1):
         bodyDef.linearDamping = 0.1
@@ -373,13 +379,20 @@ def createCircle(position, r=0.3, bDynamic=True, density=1, bMatplotlib = True, 
         bodyDef.angularDamping = 30
 
     body = world.CreateBody(bodyDef)
-    fixture = body.CreateFixture(shape=Box2D.b2CircleShape(radius=r), density=density, friction=200)    
-    body.userData = {"name":name}
+    shape = Box2D.b2CircleShape(radius=r)
 
-    if(bMatplotlib): 
+    mask = 0x0009
+    if(bCollideNoOne):
+        mask = 0x0000
+
+    fixture = body.CreateFixture(maskBits=mask, shape=shape, density=density, friction=200)
+    body.userData = {"name": name}
+
+
+    if(bMatplotlib):
         createGlobalFigure()
-        fixture.userData = drawCircle(ax,position,r)
-    
+        fixture.userData = drawCircle(ax, position, r)
+
     return body
 
 
@@ -447,13 +460,14 @@ def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, bDynamic=True, density
         for j in range(wdiv):
             x = 2*j*dw + (1-wdiv)*dw
             y = 2*i*dh + (1-hdiv)*dh
-            fixtureDef = createBoxFixture((x,y), width=dw, height=dh, bDynamic=bDynamic, density=density, collisionGroup = collisionGroup, restitution=restitution)
-            if(bCollideNoOne): fixtureDef.filter.maskBits = 0x0000;
+            fixtureDef = createBoxFixture((x, y), width=dw, height=dh, bDynamic=bDynamic, density=density, collisionGroup=collisionGroup, restitution=restitution)
+            if(bCollideNoOne):
+                fixtureDef.filter.maskBits = 0x0000
             fixture = body.CreateFixture(fixtureDef)
 
-            if(bMatplotlib): 
+            if(bMatplotlib):
                 createGlobalFigure()
-                fixture.userData = drawBox2D(ax,body,fixture)
+                fixture.userData = drawBox2D(ax, body, fixture)
     return body
 
 
@@ -476,20 +490,20 @@ def createTri(position, r=0.3, dynamic=True, bMatplotlib = True):
     fixture = body.CreateFixture(shape=Box2D.b2PolygonShape(vertices=v), density=1.0, friction=0.3)
     body.userData = {"name":"tri"}
 
-    if(bMatplotlib): 
+    if(bMatplotlib):
         createGlobalFigure()
         fixture.userData = drawTri(ax,position,r)
-    
+
     return body
 
-    
-def createArm(position = (0,0), nparts = 4, name="simple", bMatplotlib = True, collisionGroup = None, length = 1, bHand = False, hdiv = 1, bLateralize = 0, bShrink = False, signDir=1):
+
+def createArm(position=(0, 0), nparts = 4, name="simple", bMatplotlib = True, collisionGroup = None, length = 1, bHand = False, hdiv = 1, bLateralize = 0, bShrink = False, signDir=1):
     global world
     jointList = []
     d = 1
     l = length
     lsum = 0
-    prevBody = createBox( position, 0.1, 0.1, hdiv = 1, bDynamic=False, collisionGroup=-1)
+    prevBody = createBox(position, 0.1, 0.1, hdiv = 1, bDynamic=False, collisionGroup=-1)
     prevBody.userData["name"]="armpart"    
     if(signDir < 0): prevBody.userData["name"]="reversearmpart"    
     for i in range(nparts):

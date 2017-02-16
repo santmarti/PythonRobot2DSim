@@ -104,13 +104,14 @@ def drawWheel(screen,r,body,color,width):
 
 def drawIR(screen,pos,angle,nir,irangles,irvalues,r=0):
     for k in range(nir):
-        v = Box2DWorld.vrotate((1,0),angle + irangles[k])
-        c = pos+[0.97*r*v[0],0.97*r*v[1]]
+        v = Box2DWorld.vrotate((1, 0), angle + irangles[k])
+        c = pos + [0.97 * r * v[0], 0.97 * r * v[1]]
         value = irvalues[k]
-        if(value > 1): value = 1
-        draw_circle(screen, PPM*c, radius=int(0.1*PPM), color=(0,0,255), width=1)
-        color = (255-255*value,0,0)
-        draw_circle(screen, PPM*c, radius=int(0.08*PPM), color=color, width=0)
+        if(value > 1):
+            value = 1
+        draw_circle(screen, PPM * c, radius=int(0.1 * PPM), color=(0, 0, 255), width=1)
+        color = (255 - 255 * value, 0, 0)
+        draw_circle(screen, PPM * c, radius=int(0.08 * PPM), color=color, width=0)
 
 
 def drawEpuck(screen, r, body, color, width):
@@ -118,12 +119,14 @@ def drawEpuck(screen, r, body, color, width):
     for a in [-np.pi/4,np.pi/4]:
         v = Box2DWorld.vrotate((1,0),body.angle+a) 
         c = pos+[0.98*r*v[0],0.98*r*v[1]]
-        my_draw_line(screen, [pos, c], color=color, width=width)        
+        my_draw_line(screen, [pos, c], color=color, width=width)
 
-    drawIR(screen,pos,body.angle,body.userData["nIR"],body.userData["IRAngles"],body.userData["IRValues"],r)
+    drawIR(screen, pos, body.angle, body.userData["nIR"], body.userData["IRAngles"], body.userData["IRValues"], r)
+    if(body.userData["nOther"] > 0):
+        drawIR(screen, pos, body.angle, body.userData["nOther"], body.userData["OtherAngles"], body.userData["OtherValues"], 0.6 * r)
 
 
-# When drawing a circle called from 
+# When drawing a circle called from
 # draw_world(screen) defined in this File
 # the info in userData (a map {}) is exploited
 # userData["name"] can be "epuck", "reward"
@@ -133,29 +136,33 @@ def box2d_draw_circle(screen, circle, body, fixture, color=[], width=3):
     r = circle.radius
     pos=body.position
     position=body.position*PPM
+    userData = body.userData
+    name = userData["name"]
 
     bDraw = True
-    if("visible" in body.userData):
-        if(not body.userData["visible"]): bDraw = False
+    if("visible" in userData):
+        if(not userData["visible"]): bDraw = False
 
-    if(body.userData["name"] == "reward"): 
+    if(name == "reward"): 
         if(bDraw):
-            e = body.userData["energy"]
+            e = userData["energy"]
             width,color = 6, [80-80*e,80*e,0]
             draw_circle(screen, position, radius=int(r*PPM), color=color, width=0)
             width,color = 6, [255-255*e,255*e,0]
-    elif(body.userData["name"] == "epuck"):
+    elif(name == "epuck"):
         width,color = 4, [55,200,225]
-    if(body.userData["name"] == "ball"): 
+    if(name == "ball"): 
         width,color = 6, [10,80,0]
         draw_circle(screen, position, radius=int(r*PPM), color=color, width=0)
         width,color = 6, [10,120,0]
 
+    if(bDraw): 
+        c = color
+        if("color" in userData): c,width = userData["color"],0
+        draw_circle(screen, position, radius=int(r*PPM), color=c, width=width)
 
-    if(bDraw): draw_circle(screen, position, radius=int(r*PPM), color=color, width=width)
-
-    if(body.userData["name"] == "epuck"): drawEpuck(screen,r,body,color,width)
-    elif(body.userData["name"] == "wheel"): drawWheel(screen,r,body,color,width)
+    if(name == "epuck"): drawEpuck(screen,r,body,color,width)
+    elif(name == "wheel"): drawWheel(screen,r,body,color,width)
 
 
 def my_draw_line(screen, points, color = (10,80,40,10), width=1):

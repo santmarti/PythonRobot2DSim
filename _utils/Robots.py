@@ -66,11 +66,11 @@ class IR(object):
 class Epuck(object):
     """Epuck robot class: two motors and infrared sensors."""
 
-    def __init__(self, position=(0, 0), r=0.48, bHorizontal=False, bMatplotlib=False, frontIR=6, ngrad=2):
+    def __init__(self, position=(0, 0), r=0.48, bHorizontal=False, bMatplotlib=False, frontIR=6, nother=0):
         """Init of userData map with relevant values."""
 
         self.ini_pos = position
-        self.body = createCircle(position, r=r, bDynamic=True, bMatplotlib=True, name="epuck")
+        self.body = createCircle(position, r=r, bDynamic=True, bMatplotlib=False, name="epuck")
         self.body.angle = np.pi / 2
         self.r = r
         # self.body = createBox(position, w=0.2,h=0.2,bDynamic=True, bMatplotlib=True)
@@ -86,11 +86,13 @@ class Epuck(object):
         self.body.userData["IRAngles"] = self.IR.IRAngles
         self.body.userData["IRValues"] = self.IR.IRValues
 
-        self.GradSensors = [GradSensor(ngrad)]
-        self.body.userData["nOther"] = ngrad
-        self.body.userData["OtherAngles"] = self.GradSensors[0].GradAngles
-        self.body.userData["OtherValues"] = self.GradSensors[0].GradValues
-        self.body.userData["reward"] = 0
+        self.body.userData["nOther"] = nother
+        
+        self.nother = nother
+        if(nother > 0):
+            self.GradSensors = [GradSensor(nother)]
+            self.body.userData["OtherAngles"] = self.GradSensors[0].GradAngles
+            self.body.userData["OtherValues"] = self.GradSensors[0].GradValues
 
         self.userData = self.body.userData
 
