@@ -8,8 +8,9 @@ from VectorFigUtils import dist
 class GradSensor(object):
     """ Gradient Sensor used by EPuck."""
 
-    def __init__(self, ngrad=1):
+    def __init__(self, ngrad=1, name="grad"):
         """Init Gradient Sensor."""
+        self.name = name
         self.ngrad = ngrad
         if(ngrad < 4):
             m, da = (1 + ngrad) % 2, np.pi / (2 + ngrad)
@@ -20,15 +21,16 @@ class GradSensor(object):
 
     def update(self, pos, angle, centers=[]):
         """Update passing agnet pos, angle and list of positions of gradient emmiters."""
+        maxd = 6.5
         for k in range(self.ngrad):
             v = vrotate((1, 0), angle + self.GradAngles[k])
-            maxgrad = 0
-            for c in centers:
+            vals = [0, 0]
+            for i, c in enumerate(centers):
                 vc = (c[0] - pos[0], c[1] - pos[1])
-                value = dist(pos, c) * abs(vangle(v, vc)) / np.pi
-                if(value > maxgrad):
-                    maxgrad = value
-            self.GradValues[k] = maxgrad
+                d = dist(pos, c)
+                if(d > maxd): d = maxd
+                vals[i] = ((maxd - d) / maxd) * (1-abs(vangle(v, vc)) / np.pi)
+            self.GradValues[k] = 1-max(vals)
 
 
 class IR(object):
@@ -66,7 +68,7 @@ class IR(object):
 class Epuck(object):
     """Epuck robot class: two motors and infrared sensors."""
 
-    def __init__(self, position=(0, 0), angle=np.pi / 2, r=0.48, bHorizontal=False, bMatplotlib=False, frontIR=6, nother=0):
+    def __init__(self, position=(0, 0), angle=np.pi / 2, r=0.48, bHorizontal=False, bMatplotlib=False, frontIR=6, nother=0, nrewsensors=0):
         """Init of userData map with relevant values."""
 
         self.ini_pos = position
@@ -76,7 +78,6 @@ class Epuck(object):
         # self.body = createBox(position, w=0.2,h=0.2,bDynamic=True, bMatplotlib=True)
         self.motors = [0, 0]
         self.bHorizontal = bHorizontal
-
         self.bForceMotors = True
 
         self.frontIR = frontIR
@@ -86,13 +87,23 @@ class Epuck(object):
         self.body.userData["IRAngles"] = self.IR.IRAngles
         self.body.userData["IRValues"] = self.IR.IRValues
 
+        self.GradSensors = []
+
         self.body.userData["nOther"] = nother
-        
         self.nother = nother
         if(nother > 0):
-            self.GradSensors = [GradSensor(nother)]
-            self.body.userData["OtherAngles"] = self.GradSensors[0].GradAngles
-            self.body.userData["OtherValues"] = self.GradSensors[0].GradValues
+            otherGrad = GradSensor(nother,name="other")
+            self.GradSensors.append(otherGrad)
+            self.body.userData["OtherAngles"] = otherGrad.GradAngles
+            self.body.userData["OtherValues"] = otherGrad.GradValues
+
+        self.nrewardsensors = nrewsensors
+        self.body.userData["nRewardSensors"] = nrewsensors
+        if(nrewsensors > 0):
+            rewGrad = GradSensor(nrewsensors, name="reward")
+            self.GradSensors.append(rewGrad)
+            self.body.userData["RewardAngles"] = rewGrad.GradAngles
+            self.body.userData["RewardValues"] = rewGrad.GradValues
 
         self.userData = self.body.userData
 

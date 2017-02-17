@@ -82,7 +82,7 @@ def box2d_draw_polygon(screen, polygon, body, fixture, color = [], width=3):
             chestpos = a+(b-a)/3.8
         else:
             a,b = vertices[3],vertices[0]
-            chestpos = a+(b-a)/3.8            
+            chestpos = a+(b-a)/3.8
         drawIR(screen,chestpos,body.angle,body.userData["nIR"],body.userData["IRAngles"],body.userData["IRValues"])    
     else:
         draw_polygon(screen, vertices, color, width)
@@ -123,7 +123,9 @@ def drawEpuck(screen, r, body, color, width):
 
     drawIR(screen, pos, body.angle, body.userData["nIR"], body.userData["IRAngles"], body.userData["IRValues"], r)
     if(body.userData["nOther"] > 0):
-        drawIR(screen, pos, body.angle, body.userData["nOther"], body.userData["OtherAngles"], body.userData["OtherValues"], 0.6 * r)
+        drawIR(screen, pos, body.angle, body.userData["nOther"], body.userData["OtherAngles"], body.userData["OtherValues"], 0.73 * r)
+    if(body.userData["nRewardSensors"] > 0):
+        drawIR(screen, pos, body.angle, body.userData["nRewardSensors"], body.userData["RewardAngles"], body.userData["RewardValues"], 0.45 * r)
 
 
 # When drawing a circle called from

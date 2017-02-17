@@ -161,33 +161,37 @@ class ExpSetupRandall():
 # Experimental Setup Epuck
 # *****************************************************************
 
-class ExpSetupEpuck:
+class ExpSetupEpuck(object):
+    """Exp setup class with two epucks and two reward sites."""
 
     def __init__(self, n=1, debug=False):
+        """Create the two epucks, two rewards and walls."""
         global bDebug
         bDebug = debug
         print "-------------------------------------------------"
-        th=.2
-        positions = [(-3, 2+th), (3, 2+th)]
-        angles = [2*np.pi,np.pi]
-        self.epucks = [Epuck(position=positions[i], angle=angles[i], nother=2) for i in range(n)]
+        th = .2
+        positions = [(-3, 2 + th), (3, 2 + th)]
+        angles = [2 * np.pi, np.pi]
+        self.epucks = [Epuck(position=positions[i], angle=angles[i], nother=2, nrewsensors=2) for i in range(n)]
         addWalls((0, 0), dx=3.75, dh=0.1, h=3, th=th)
         self.objs = []
-        addReward(self, pos=(0, 4+th), vel=(0, 0), bDynamic=False, bCollideNoOne=True)
-        addReward(self, pos=(0, 0+th), vel=(0, 0), bDynamic=False, bCollideNoOne=True)
-
-
+        addReward(self, pos=(0, 4 + th), vel=(0, 0), bDynamic=False, bCollideNoOne=True)
+        addReward(self, pos=(0, 0 + th), vel=(0, 0), bDynamic=False, bCollideNoOne=True)
 
     def update(self):
+        """Update of epucks positions and gradient sensors: other and reward."""
         for e in self.epucks:
             e.update()
             pos = e.getPosition()
 
-            if(e.nother > 0):
-                for i, g in enumerate(e.GradSensors):
-                    if(i == 0):
-                        centers = [o.getPosition() for o in self.epucks if o != e]
-                        g.update(pos, e.getAngle(), centers)
+            for g in e.GradSensors:
+                if(g.name == "other"):
+                    centers = [o.getPosition() for o in self.epucks if o != e]
+                elif(g.name == "reward"):
+                    centers = [o.position for o in self.objs]
+
+                g.update(pos, e.getAngle(), centers)
+
 
     def setMotors(self, epuck=0, motors=[10, 10]):
         self.epucks[epuck].motors = motors
@@ -201,7 +205,7 @@ class ExpSetupDualCartPole:
 
     max_motor_speed = 30
 
-    def __init__(self, xshift=0, salientMode = "center", name="simple", debug = False, objBetween = 4, objWidth = 0.1, objForce=100, bSelfCollisions=True):
+    def __init__(self, xshift=0, salientMode="center", name="simple", debug = False, objBetween = 4, objWidth = 0.1, objForce=100, bSelfCollisions=True):
         global world, bDebug
         bDebug = debug
         print "-------------------------------------------------"
