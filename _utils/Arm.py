@@ -12,7 +12,7 @@ from Box2DWorld import world, TIME_STEP, vel_iters, pos_iters, createArm, bDebug
 class Arm:
     size_history  = 50
 
-    def __init__(self, nparts=2, position=(0,0), name="simple", bMatplotlib = False, length = 1, bHand = False, hdiv = 1, bLateralize = 0, bShrink = False, collisionGroup=None,signDir=1):
+    def __init__(self, nparts=2, position=(0,0), name="simple", length=1, bHand=False, hdiv=1, bLateralize=0, bShrink=False, collisionGroup=None,signDir=1):
         global arm, bDebug
         arm = self
         self.name = name
@@ -20,7 +20,7 @@ class Arm:
         self.salientMode = "all"
         self.nparts = nparts
         self.bHand = bHand
-        self.jointList = createArm(position, nparts, bLateralize = bLateralize, bMatplotlib = bMatplotlib, length = length, bHand = bHand, hdiv = hdiv, name=name, bShrink = bShrink, collisionGroup=collisionGroup,signDir=signDir)
+        self.jointList = createArm(position, nparts, bLateralize=bLateralize, length=length, bHand=bHand, hdiv=hdiv, name=name, bShrink = bShrink, collisionGroup=collisionGroup,signDir=signDir)
 
         self.targetJoints = [0] * nparts      # without np multiply equals repeat
         if(bHand): self.targetJoints += [0]   # withou np sum equals concat

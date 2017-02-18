@@ -20,19 +20,19 @@ def iniLog(file=None):
     logging.FileHandler(file)
     ilogstep = 0
 
-def addWalls(pos, dx=3, dh=0, h=2.8, th=0, bHoriz=True, bVert=True, bMatplotlib=False):               
+def addWalls(pos, dx=3, dh=0, h=2.8, th=0, bHoriz=True, bVert=True):               
     x, y = pos
     wl = 0.2
     yh = (5 + 1) / 2.0
     if(bVert):
-        createBox((x, y - 1 - dh + th), w=h + dh + wl + th, h=wl, bDynamic=False, bMatplotlib=bMatplotlib)
-        createBox((x, y + 5 + dh + th), w=h + dh + wl + th, h=wl, bDynamic=False, bMatplotlib=bMatplotlib)
+        createBox((x, y - 1 - dh + th), w=h + dh + wl + th, h=wl, bDynamic=False)
+        createBox((x, y + 5 + dh + th), w=h + dh + wl + th, h=wl, bDynamic=False)
     if(bHoriz):
-        createBox((x - dx - wl, y + yh - 1 + dh / 2 + th), w=wl, h=h + dh, bDynamic=False, bMatplotlib=bMatplotlib)
-        createBox((x + dx + wl, y + yh - 1 + dh / 2 + th), w=wl, h=h + dh, bDynamic=False, bMatplotlib=bMatplotlib)
+        createBox((x - dx - wl, y + yh - 1 + dh / 2 + th), w=wl, h=h + dh, bDynamic=False)
+        createBox((x + dx + wl, y + yh - 1 + dh / 2 + th), w=wl, h=h + dh, bDynamic=False)
 
-def addReward(who, pos=(0,0), vel=(0,0), bDynamic=True, bCollideNoOne=False, bMatplotlib=False):
-    obj = createCircle(position=pos, bDynamic=bDynamic, bCollideNoOne=bCollideNoOne, density=10, name="reward", r=0.2, bMatplotlib=bMatplotlib)
+def addReward(who, pos=(0,0), vel=(0,0), bDynamic=True, bCollideNoOne=False):
+    obj = createCircle(position=pos, bDynamic=bDynamic, bCollideNoOne=bCollideNoOne, density=10, name="reward", r=0.2)
     obj.userData["energy"] = 1.0
     obj.userData["visible"] = 1.0
     obj.linearVelocity = vel
@@ -70,7 +70,7 @@ class ExpSetupRandall():
     def setOcclusion(self):
         # if(self.box is not None):
         w, h, y = 4.5, 1, 3
-        self.box = createBox([0, y], w=w, h=h, bDynamic=False, bMatplotlib=False, bCollideNoOne=True, name="occlusion") 
+        self.box = createBox([0, y], w=w, h=h, bDynamic=False, bCollideNoOne=True, name="occlusion") 
         self.box.userData["visible"] = 1.0
         self.box.userData["height"] = h
         self.box.userData["y"] = y
@@ -262,16 +262,16 @@ class ExpSetupDualCartPole:
         for i in [0, 1]:
             self.carts[i].update()
 
-    def addWalls(self, pos, bMatplotlib=False):
+    def addWalls(self, pos):
         """Limits of the world."""
         x, y = pos
         wl = 0.2
         h = (5 + 1) / 2.0
         l = 6
-        createBox((x, y - 1), w=l + 2 * wl, h=wl, bDynamic=False, bMatplotlib=bMatplotlib)
-        # createBox((x,y+5), w = 3, h = wl, bDynamic=False, bMatplotlib = bMatplotlib)
-        createBox((x - l - wl, y + h - 1), w=wl, h=2.8, bDynamic=False, bMatplotlib=bMatplotlib)
-        createBox((x + l + wl, y + h - 1), w=wl, h=2.8, bDynamic=False, bMatplotlib=bMatplotlib)
+        createBox((x, y - 1), w=l + 2 * wl, h=wl, bDynamic=False)
+        # createBox((x,y+5), w = 3, h = wl, bDynamic=False)
+        createBox((x - l - wl, y + h - 1), w=wl, h=2.8, bDynamic=False)
+        createBox((x + l + wl, y + h - 1), w=wl, h=2.8, bDynamic=False)
 
     def getSalient(self):
         return [cart.getBodyPos() for cart in self.carts]
@@ -379,8 +379,8 @@ class ExpSetupNao:
             self.obj_type = "circle"
             self.iniConstrainedObject(pos_obj)
             w = 0.3
-            self.boxA = createBox([-0.8, 1.5], w=w, h=w, bDynamic=False, bMatplotlib=False, bCollideNoOne=True, name="boxA") 
-            self.boxB = createBox([0.8, 1.5], w=w, h=w, bDynamic=False, bMatplotlib=False, bCollideNoOne=True, name="boxB") 
+            self.boxA = createBox([-0.8, 1.5], w=w, h=w, bDynamic=False, bCollideNoOne=True, name="boxA") 
+            self.boxB = createBox([0.8, 1.5], w=w, h=w, bDynamic=False, bCollideNoOne=True, name="boxB") 
 
         self.nao = NaoRobot(pos_nao, name=self.name_robot, bTwoArms=bTwoArms, bOppositeArms=bOppositeArms, collisionGroup=collisionGroup)
         self.arms = self.nao.arms
@@ -393,14 +393,14 @@ class ExpSetupNao:
 
 
     def iniThreeObjects(self,pos_obj,obj_type):
-        self.objs.append(createCircle(pos_obj, r=0.45, bMatplotlib=False))
-        self.objs.append(createTri(pos_obj, r=0.45, bMatplotlib=False))
-        self.objs.append(createBox(pos_obj, wdiv=1, hdiv=1, w=0.35, h=0.35, bMatplotlib=False))
+        self.objs.append(createCircle(pos_obj, r=0.45))
+        self.objs.append(createTri(pos_obj, r=0.45))
+        self.objs.append(createBox(pos_obj, wdiv=1, hdiv=1, w=0.35, h=0.35))
 
         self.target_objs = []
-        self.target_objs.append(createCircle(pos_obj, r=0.45, bMatplotlib=False))
-        self.target_objs.append(createTri(pos_obj, r=0.45, bMatplotlib=False))
-        self.target_objs.append(createBox(pos_obj, wdiv=1, hdiv=1, w=0.35, h=0.35, bMatplotlib=False))
+        self.target_objs.append(createCircle(pos_obj, r=0.45))
+        self.target_objs.append(createTri(pos_obj, r=0.45))
+        self.target_objs.append(createBox(pos_obj, wdiv=1, hdiv=1, w=0.35, h=0.35))
         for t in self.target_objs:
             t.active = False
             t.position = [2, 4]
@@ -416,13 +416,13 @@ class ExpSetupNao:
 
 
     def iniConstrainedObject(self,pos_obj):
-        obj = createCircle(pos_obj, r=0.3, density=0.01, bMatplotlib=False, name="ball")
+        obj = createCircle(pos_obj, r=0.3, density=0.01, name="ball")
         self.objs.append(obj)
         obj.position = [0, 1.5]
         self.obj = self.objs[0]
         obj.userData["name"] = "toy"
 
-        bar = createBox(obj.position, w=1, h=0.001, bDynamic=False, bMatplotlib=False, bCollideNoOne=True)
+        bar = createBox(obj.position, w=1, h=0.001, bDynamic=False, bCollideNoOne=True)
         bar.userData["name"] = "bar"
 
         self.joint = myCreateLinearJoint(bar, obj, force=0, lowerTranslation=-0.82, upperTranslation=0.82)

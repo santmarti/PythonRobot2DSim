@@ -68,14 +68,14 @@ class IR(object):
 class Epuck(object):
     """Epuck robot class: two motors and infrared sensors."""
 
-    def __init__(self, position=(0, 0), angle=np.pi / 2, r=0.48, bHorizontal=False, bMatplotlib=False, frontIR=6, nother=0, nrewsensors=0):
+    def __init__(self, position=(0, 0), angle=np.pi / 2, r=0.48, bHorizontal=False, frontIR=6, nother=0, nrewsensors=0):
         """Init of userData map with relevant values."""
 
         self.ini_pos = position
-        self.body = createCircle(position, r=r, bDynamic=True, bMatplotlib=False, name="epuck")
+        self.body = createCircle(position, r=r, bDynamic=True, name="epuck")
         self.body.angle = angle
         self.r = r
-        # self.body = createBox(position, w=0.2,h=0.2,bDynamic=True, bMatplotlib=True)
+        # self.body = createBox(position, w=0.2,h=0.2,bDynamic=True)
         self.motors = [0, 0]
         self.bHorizontal = bHorizontal
         self.bForceMotors = True
@@ -157,7 +157,7 @@ class Epuck(object):
 class NaoRobot:
     """Two Arm robot top view."""
 
-    def __init__(self, position=(0,0), name="simple", bMatplotlib=False, bTwoArms=True, collisionGroup=None, bOppositeArms=False):
+    def __init__(self, position=(0,0), name="simple", bTwoArms=True, collisionGroup=None, bOppositeArms=False):
         """Init body and arms of the robot."""
         global nao
         nao = self
@@ -171,8 +171,8 @@ class NaoRobot:
             w = 0.5
 
         if(not bOppositeArms and bTwoArms):
-            createBox((x - w / 2.0, y), w=w / 2.0, h=w / 1.8, bDynamic=False, bMatplotlib=bMatplotlib, collisionGroup=-1)
-            createBox((x + w / 2.0, y), w=w / 2.0, h=w / 1.8, bDynamic=False, bMatplotlib=bMatplotlib, collisionGroup=-1)
+            createBox((x - w / 2.0, y), w=w / 2.0, h=w / 1.8, bDynamic=False, collisionGroup=-1)
+            createBox((x + w / 2.0, y), w=w / 2.0, h=w / 1.8, bDynamic=False, collisionGroup=-1)
 
         bShrink = False
         length = 1
@@ -185,12 +185,12 @@ class NaoRobot:
         self.arms = []
 
         if(not bOppositeArms):
-            self.arms.append(Arm(bLateralize=1, hdiv=1, nparts=self.nparts, position=(x - w, y), length=length, name=name, bMatplotlib=bMatplotlib, bShrink=bShrink, collisionGroup=collisionGroup))
+            self.arms.append(Arm(bLateralize=1, hdiv=1, nparts=self.nparts, position=(x - w, y), length=length, name=name, bShrink=bShrink, collisionGroup=collisionGroup))
             if(bTwoArms):
-                self.arms.append(Arm(bLateralize=2, hdiv=1, nparts=self.nparts, position=(x+w,y), length=length, name=name, bMatplotlib=bMatplotlib, bShrink=bShrink, collisionGroup=collisionGroup))
+                self.arms.append(Arm(bLateralize=2, hdiv=1, nparts=self.nparts, position=(x+w,y), length=length, name=name, bShrink=bShrink, collisionGroup=collisionGroup))
         else:
-            arm1 = Arm(position=(x, y), bLateralize=0, hdiv=1, nparts=self.nparts, length = length, name=name, bMatplotlib=bMatplotlib, bShrink=bShrink, collisionGroup=collisionGroup)
-            arm2 = Arm(position=(x, y + 3), signDir=-1, bLateralize=0, hdiv=1, nparts=self.nparts, length=length, name=name, bMatplotlib=bMatplotlib, bShrink=bShrink, collisionGroup=collisionGroup)
+            arm1 = Arm(position=(x, y), bLateralize=0, hdiv=1, nparts=self.nparts, length = length, name=name, bShrink=bShrink, collisionGroup=collisionGroup)
+            arm2 = Arm(position=(x, y + 3), signDir=-1, bLateralize=0, hdiv=1, nparts=self.nparts, length=length, name=name, bShrink=bShrink, collisionGroup=collisionGroup)
             self.arms.append(arm1)
             self.arms.append(arm2)
 
@@ -357,13 +357,13 @@ class NaoRobot:
 class CartPole:
     """Cartpole self balancing robot class."""
 
-    def __init__(self, position=(0, 0), name="simple", bMatplotlib=False, d=1, bHand=0, collisionGroup=None):
+    def __init__(self, position=(0, 0), name="simple", d=1, bHand=0, collisionGroup=None):
         """Init using IR class."""
         global bDebug
         self.name = name
         self.ini_pos = position
         self.salientMode = "all"
-        self.circle = createCircle(position, r=d * 0.6, bDynamic=True, density=1, bMatplotlib=True, name="wheel")
+        self.circle = createCircle(position, r=d * 0.6, bDynamic=True, density=1, name="wheel")
         self.box = createBox((position[0], position[1] + d * 1.9), d * 0.2, d * 2, bDynamic=True, density=1)
         self.joint = myCreateRevoluteJoint(self.circle, self.box, position, iswheel=True)
         self.bHand = bHand

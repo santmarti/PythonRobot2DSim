@@ -157,41 +157,6 @@ def plotWorld(ax, alpha=0.3, nao=None, obj=None, bDrawGround=False, color='b', c
         plotVectors(ax, centers, cradius=cradius, specials=specials, ccolor=ccolor, label=label)
     plt.grid()
 
-
-
-def init():
-    circles, = ax.plot([], [], 'bo', ms=5)
-    lines, = ax.plot([], [], '-', lw=2)
-    lines.set_data([], [])
-    circles.set_data([], [])
-    return lines, circles
-
-
-def frameWorld(i):
-    """Function for animations in Matplotlib called sequentially."""
-    global world, TIME_STEP, vel_iters, pos_iters, ax, fig
-    plotWorld(ax, nao)
-    if(arm):
-        arm.update()
-    world.Step(TIME_STEP, vel_iters, pos_iters)
-    world.ClearForces()
-    return []
-
-# function specific of an Animation: animateWorld function
-def init():
-    circles, = ax.plot([], [], 'bo', ms=5)
-    lines, = ax.plot([], [], '-', lw=2)
-    lines.set_data([], [])
-    circles.set_data([], [])
-    return lines, circles
-
-def animateWorld():
-    global world, fig, ax
-    createGlobalFigure()
-    anim = animation.FuncAnimation(fig, frameWorld, init_func=init, frames=150, interval=20, blit=True)
-    return anim
-
-
 # ********************************************
 # Creation and plotting Utils
 
@@ -342,7 +307,7 @@ def myCreateRevoluteJoint(bodyA,bodyB,anchor,lowerAngle = -0.7 * np.pi, upperAng
                 )
 
 
-def createGround(position=[0,-20], bMatplotlib=True):
+def createGround(position=[0,-20]):
     global world
     groundBodyDef = Box2D.b2BodyDef()
     groundBodyDef.position = Box2D.b2Vec2(0, -20)
@@ -352,17 +317,10 @@ def createGround(position=[0,-20], bMatplotlib=True):
     groundBox.SetAsBox(100, 10)
     fixture = groundBody.CreateFixturesFromShapes(groundBox,friction=100)
 
-    if(bMatplotlib):
-        createGlobalFigure()
-        shape = fixture.shape
-        vertices=[groundBody.transform*v for v in shape.vertices]
-        poly = plt.Polygon(vertices, lw=5, edgecolor='b')
-        ax.add_patch( poly )
-
     return groundBody
 
 
-def createCircle(position, r=0.3, bDynamic=True, bCollideNoOne=False, density=1, bMatplotlib=True, name=""):
+def createCircle(position, r=0.3, bDynamic=True, bCollideNoOne=False, density=1, name=""):
     global world, fig, ax
     bodyDef = Box2D.b2BodyDef()
     bodyDef.position = position
@@ -388,19 +346,14 @@ def createCircle(position, r=0.3, bDynamic=True, bCollideNoOne=False, density=1,
     fixture = body.CreateFixture(maskBits=mask, shape=shape, density=density, friction=200)
     body.userData = {"name": name}
 
-
-    if(bMatplotlib):
-        createGlobalFigure()
-        fixture.userData = drawCircle(ax, position, r)
-
     return body
 
 
-def createRope(position, nparts=10, r=0.3, density=1, bMatplotlib = True, name=""):
+def createRope(position, nparts=10, r=0.3, density=1, name=""):
     global world
     jointList = []
     
-    firstBody = createCircle( position, r=r, bMatplotlib=bMatplotlib)
+    firstBody = createCircle( position, r=r)
     firstBody.userData["name"]="ropepart"   
 
     prevBody = firstBody
@@ -408,7 +361,7 @@ def createRope(position, nparts=10, r=0.3, density=1, bMatplotlib = True, name="
 
     pos = position
     for i in range(nparts):
-        body = createCircle( pos, r=r, density=density, bMatplotlib=bMatplotlib)
+        body = createCircle( pos, r=r, density=density)
         jointList.append( myCreateDistanceJoint(prevBody,body) )
         pos = (pos[0]+1.55*r, pos[1])
         prevBody = body
@@ -435,7 +388,7 @@ def createBoxFixture(pos = (0,0), width=1.0, height=1.0, bDynamic=True, density 
     else:       fixtureDef.density = 0            
     return fixtureDef
 
-def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, bDynamic=True, density=1, damping = 0, collisionGroup = None, bMatplotlib = False, restitution=None, bCollideNoOne=False, name=""):
+def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, bDynamic=True, density=1, damping = 0, collisionGroup = None, restitution=None, bCollideNoOne=False, name=""):
     global world
     bodyDef = Box2D.b2BodyDef()
     bodyDef.position = position
@@ -465,13 +418,10 @@ def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, bDynamic=True, density
                 fixtureDef.filter.maskBits = 0x0000
             fixture = body.CreateFixture(fixtureDef)
 
-            if(bMatplotlib):
-                createGlobalFigure()
-                fixture.userData = drawBox2D(ax, body, fixture)
     return body
 
 
-def createTri(position, r=0.3, dynamic=True, bMatplotlib = True):
+def createTri(position, r=0.3, dynamic=True):
     global world, fig, ax
     bodyDef = Box2D.b2BodyDef()
     fixtureDef = Box2D.b2FixtureDef()
@@ -490,14 +440,10 @@ def createTri(position, r=0.3, dynamic=True, bMatplotlib = True):
     fixture = body.CreateFixture(shape=Box2D.b2PolygonShape(vertices=v), density=1.0, friction=0.3)
     body.userData = {"name":"tri"}
 
-    if(bMatplotlib):
-        createGlobalFigure()
-        fixture.userData = drawTri(ax,position,r)
-
     return body
 
 
-def createArm(position=(0, 0), nparts = 4, name="simple", bMatplotlib = True, collisionGroup = None, length = 1, bHand = False, hdiv = 1, bLateralize = 0, bShrink = False, signDir=1):
+def createArm(position=(0, 0), nparts = 4, name="simple", collisionGroup = None, length = 1, bHand = False, hdiv = 1, bLateralize = 0, bShrink = False, signDir=1):
     global world
     jointList = []
     d = 1
