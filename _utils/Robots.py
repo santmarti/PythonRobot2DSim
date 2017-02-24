@@ -14,23 +14,30 @@ class GradSensor(object):
         self.ngrad = ngrad
         if(ngrad < 4):
             m, da = (1 + ngrad) % 2, np.pi / (2 + ngrad)
+        elif(ngrad == 4):
+            m, da = (1 + ngrad) % 2, np.pi / (1+ngrad)
         else:
             m, da = (1 + ngrad) % 2, np.pi / (ngrad - 1)
         self.GradAngles = [k * da - ((ngrad - m) / 2) * da - m * da / 2 for k in range(ngrad)]
         self.GradValues = [0 for i in range(ngrad)]
 
-    def update(self, pos, angle, centers=[]):
+    def update(self, pos, angle, centers=[], extremes=0):
         """Update passing agnet pos, angle and list of positions of gradient emmiters."""
         maxd = 6.5
-        for k in range(self.ngrad):
+        sensors = range(self.ngrad)
+        if(extremes):
+            sensors = [0, self.ngrad - 1]
+
+        for k in sensors:
             v = vrotate((1, 0), angle + self.GradAngles[k])
             vals = [0, 0]
             for i, c in enumerate(centers):
                 vc = (c[0] - pos[0], c[1] - pos[1])
                 d = dist(pos, c)
-                if(d > maxd): d = maxd
-                vals[i] = ((maxd - d) / maxd) * (1-abs(vangle(v, vc)) / np.pi)
-            self.GradValues[k] = 1-max(vals)
+                if(d > maxd):
+                    d = maxd
+                vals[i] = ((maxd - d) / maxd) * (1 - abs(vangle(v, vc)) / np.pi)
+            self.GradValues[k] = 1 - max(vals)
 
 
 class IR(object):
@@ -89,10 +96,10 @@ class Epuck(object):
 
         self.GradSensors = []
 
-        self.body.userData["nOther"] = nother
+        self.body.userData["nOtherSensors"] = nother
         self.nother = nother
         if(nother > 0):
-            otherGrad = GradSensor(nother,name="other")
+            otherGrad = GradSensor(nother, name="other")
             self.GradSensors.append(otherGrad)
             self.body.userData["OtherAngles"] = otherGrad.GradAngles
             self.body.userData["OtherValues"] = otherGrad.GradValues

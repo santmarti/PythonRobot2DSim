@@ -122,8 +122,8 @@ def drawEpuck(screen, r, body, color, width):
         my_draw_line(screen, [pos, c], color=color, width=width)
 
     drawIR(screen, pos, body.angle, body.userData["nIR"], body.userData["IRAngles"], body.userData["IRValues"], r)
-    if(body.userData["nOther"] > 0):
-        drawIR(screen, pos, body.angle, body.userData["nOther"], body.userData["OtherAngles"], body.userData["OtherValues"], 0.73 * r)
+    if(body.userData["nOtherSensors"] > 0):
+        drawIR(screen, pos, body.angle, body.userData["nOtherSensors"], body.userData["OtherAngles"], body.userData["OtherValues"], 0.73 * r)
     if(body.userData["nRewardSensors"] > 0):
         drawIR(screen, pos, body.angle, body.userData["nRewardSensors"], body.userData["RewardAngles"], body.userData["RewardValues"], 0.45 * r)
 
@@ -134,40 +134,45 @@ def drawEpuck(screen, r, body, color, width):
 # userData["name"] can be "epuck", "reward"
 # userData["frontIRValues"] is the array of ir sensor values
 def box2d_draw_circle(screen, circle, body, fixture, color=[], width=3):
-    if(len(color)==0): color = colors[body.type]
+    if(len(color) == 0): color = colors[body.type]
     r = circle.radius
-    pos=body.position
-    position=body.position*PPM
+    pos = body.position
+    position = body.position * PPM
     userData = body.userData
     name = userData["name"]
 
     bDraw = True
     if("visible" in userData):
-        if(not userData["visible"]): bDraw = False
+        if(not userData["visible"]):
+            bDraw = False
 
-    if(name == "reward"): 
+    if(name.startswith("reward")):
         if(bDraw):
             e = userData["energy"]
-            width,color = 6, [80-80*e,80*e,0]
-            draw_circle(screen, position, radius=int(r*PPM), color=color, width=0)
-            width,color = 6, [255-255*e,255*e,0]
+            width, color = 6, [80 - 80 * e, 80 * e, 0]
+            if(name == "reward_small"):
+                color = [10, 100, 255]
+            draw_circle(screen, position, radius=int(r * PPM), color=color, width=0)
+            width, color = 6, [255 - 255 * e,255 * e,0]
     elif(name == "epuck"):
-        width,color = 4, [55,200,225]
-    if(name == "ball"): 
-        width,color = 6, [10,80,0]
+        width, color = 4, [55, 100, 225]
+    if(name == "ball"):
+        width, color = 6, [10, 80, 0]
         draw_circle(screen, position, radius=int(r*PPM), color=color, width=0)
-        width,color = 6, [10,120,0]
+        width, color = 6, [10,120,0]
 
-    if(bDraw): 
-        c = color
-        if("color" in userData): c,width = userData["color"],0
-        draw_circle(screen, position, radius=int(r*PPM), color=c, width=width)
+    if(bDraw):
+        c, w = color, width
+        if("color" in userData):
+            c, w = userData["color"], 0
+            draw_circle(screen, position, radius=int(r*PPM), color=c, width=w)
+        draw_circle(screen, position, radius=int(r*PPM), color=color, width=width)
 
     if(name == "epuck"): drawEpuck(screen,r,body,color,width)
     elif(name == "wheel"): drawWheel(screen,r,body,color,width)
 
 
-def my_draw_line(screen, points, color = (10,80,40,10), width=1):
+def my_draw_line(screen, points, color=(10, 80, 40, 10), width=1):
     vertices=[(X0+PPM * v[0], -Y0+SCREEN_HEIGHT - PPM * v[1]) for v in points]
     pygame.draw.line(screen, color, vertices[0], vertices[1], width)
 
@@ -197,7 +202,7 @@ def draw_salient(screen, exp):
             insideA = exp.boxA.fixtures[0].TestPoint(p)
             insideB = exp.boxB.fixtures[0].TestPoint(p)
             if(insideA or insideB): bDraw = False
-        
+
         if(bDraw):
             pygame.draw.circle(screen, (10,27,100,190), pint, radius)
             pygame.draw.circle(screen, (rcolor,27,100,190), pint, radiush)

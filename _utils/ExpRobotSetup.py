@@ -2,7 +2,7 @@ import numpy as np
 import Box2D
 from Box2DWorld import (world, arm, createBox, createCircle, createTri, createRope,
                         myCreateRevoluteJoint, myCreateDistanceJoint,
-                        myCreateLinearJoint, collisions)
+                        myCreateLinearJoint, collisions, RayCastCallback)
 
 from VectorFigUtils import vnorm, dist
 from Robots import NaoRobot, CartPole, Epuck
@@ -24,15 +24,20 @@ def addWalls(pos, dx=3, dh=0, h=2.8, th=0, bHoriz=True, bVert=True):
     x, y = pos
     wl = 0.2
     yh = (5 + 1) / 2.0
-    if(bVert):
-        createBox((x, y - 1 - dh + th), w=h + dh + wl + th, h=wl, bDynamic=False)
-        createBox((x, y + 5 + dh + th), w=h + dh + wl + th, h=wl, bDynamic=False)
     if(bHoriz):
-        createBox((x - dx - wl, y + yh - 1 + dh / 2 + th), w=wl, h=h + dh, bDynamic=False)
-        createBox((x + dx + wl, y + yh - 1 + dh / 2 + th), w=wl, h=h + dh, bDynamic=False)
+        createBox((x, y - 1 - dh + th), w=h + dh + wl + th, h=wl, bDynamic=False, name="wall_top")
+        createBox((x, y + 5 + dh + th), w=h + dh + wl + th, h=wl, bDynamic=False, name="wall_bottom")
+    if(bVert):
+        createBox((x - dx - wl, y + yh - 1 + dh / 2 + th), w=wl, h=h + dh, bDynamic=False, name="wall_left")
+        createBox((x + dx + wl, y + yh - 1 + dh / 2 + th), w=wl, h=h + dh, bDynamic=False, name="wall_right")
 
-def addReward(who, pos=(0,0), vel=(0,0), bDynamic=True, bCollideNoOne=False):
-    obj = createCircle(position=pos, bDynamic=bDynamic, bCollideNoOne=bCollideNoOne, density=10, name="reward", r=0.2)
+def addReward(who, pos=(0,0), vel=(0,0), reward_type=0, bDynamic=True, bCollideNoOne=False):
+    if(reward_type == 0):
+        name, r = "reward", 0.27
+    else:
+        name, r = "reward_small", 0.2
+
+    obj = createCircle(position=pos, bDynamic=bDynamic, bCollideNoOne=bCollideNoOne, density=10, name=name, r=r)
     obj.userData["energy"] = 1.0
     obj.userData["visible"] = 1.0
     obj.linearVelocity = vel
@@ -60,62 +65,87 @@ class ExpSetupRandall():
             e.userData["score"] = 0
             e.userData["reward"] = 0
 
-        addWalls((0, 0), dx=5.7, dh=2, bVert=False)
+        addWalls((0, 0), dx=5.7, dh=2, bHoriz=False)
+        createBox((0, -2), w=8, h=0.2, bDynamic=False, name="floor")
+
+        self.callback = RayCastCallback()
+
         self.objs = []
         iniLog()
+
+        self.pinter = (0, 0)
         self.box = None
-        self.setOcclusion()
+        # self.setOcclusion()
         self.phase_names = ["Training", "Easy", "Intermmediate", "Difficult"]
 
     def setOcclusion(self):
         # if(self.box is not None):
-        w, h, y = 4.5, 1, 3
+        w, h, y = 5.65, 1, 3
         self.box = createBox([0, y], w=w, h=h, bDynamic=False, bCollideNoOne=True, name="occlusion") 
         self.box.userData["visible"] = 1.0
         self.box.userData["height"] = h
         self.box.userData["y"] = y
 
+    def clearOcclusion(self):
+        world.DestroyBody(self.box)
+        self.box = None
+
+
+
+    def predictBall(self, pos, vel):
+        self.callback.fixture = None
+        world.RayCast(self.callback, pos, vel)
+
+        floorReached = False
+        #while(not floorReached):
+            #print self.callback.fixture
+        body = self.callback.fixture.body
+        floorReached = body.userData["name"] == "floor"
+        if(not floorReached):
+            vel = (-vel[0],vel[1])
+            self.callback.fixture = None
+            world.RayCast(self.callback, self.callback.point, vel)
+
+        if(self.callback.fixture is not None):
+            print self.callback.fixture.body.userData
+            self.pinter = self.callback.point
+
+        
     def addRewardRandall(self):
         vx = random.randint(-60, 60)
         vy = random.randint(-100, -20)
-        addReward(self, pos=[0, 8], vel=(vx, vy))
+        pos, vel = [0, 8], (vx, vy)
+        addReward(self, pos=pos, vel=vel)
+        self.predictBall(pos, vel)
+
+        # if(abs(vx + vy) > 0):
+        #    self.pinter = (6 * vx / (vx + vy), 8 + 6 * vy / (vx + vy))
 
     def updateRewards(self):
+        box, alive = self.box, []
         if(len(self.objs) == 0):
             self.addRewardRandall()
-        alive = []
         for o in self.objs:
             x, y = o.position
-            bRemove = False
-            if(y < -2 or y > 8):
-                bRemove = True
-
-            box = self.box
-
-            if(box.userData["visible"]):
+            bRemove = (y < -2 or y > 8)
+            if(box is not None and box.userData["visible"]):
                 h = box.userData["height"]
+                o.userData["visible"] = 1
                 if(y < box.position[1] + h and y > box.position[1] - h):
                     o.userData["visible"] = 0
-                else:
-                    o.userData["visible"] = 1
 
             for c in o.contacts:
-                cpos = c.contact.worldManifold.points[0]
-                if(vnorm(cpos)<0.01):
+                cpos, data = c.contact.worldManifold.points[0], c.other.userData                
+                if(data["name"] == "floor"):
+                    bRemove = True
                     continue
-                data = c.other.userData
-                if(data["name"] != "epuck"):
+                if((data["name"] != "epuck") or (vnorm(cpos) < 0.01)):
                     continue
                 o.userData["energy"] -= 0.5
                 if(o.userData["energy"] <= 0):
-                    dx = abs(x - c.other.position[0])
-                    if(dx > 4):
-                        dx = 4
-                    dx = dx / 4
-
-                    bRemove = True
-                    data["score"] += dx
+                    data["score"] += np.clip(abs(x - c.other.position[0]), 0, 4) / 4
                     data["reward"] += 1
+                    bRemove = True
 
             if(bRemove):
                 world.DestroyBody(o)
@@ -172,11 +202,11 @@ class ExpSetupEpuck(object):
         th = .2
         positions = [(-3, 2 + th), (3, 2 + th)]
         angles = [2 * np.pi, np.pi]
-        self.epucks = [Epuck(position=positions[i], angle=angles[i], nother=2, nrewsensors=2) for i in range(n)]
+        self.epucks = [Epuck(position=positions[i], angle=angles[i], nother=2, nrewsensors=4) for i in range(n)]
         addWalls((0, 0), dx=3.75, dh=0.1, h=3, th=th)
         self.objs = []
         addReward(self, pos=(0, 4 + th), vel=(0, 0), bDynamic=False, bCollideNoOne=True)
-        addReward(self, pos=(0, 0 + th), vel=(0, 0), bDynamic=False, bCollideNoOne=True)
+        addReward(self, pos=(0, 0 + th), vel=(0, 0), reward_type=1, bDynamic=False, bCollideNoOne=True)
 
     def update(self):
         """Update of epucks positions and gradient sensors: other and reward."""
@@ -187,10 +217,13 @@ class ExpSetupEpuck(object):
             for g in e.GradSensors:
                 if(g.name == "other"):
                     centers = [o.getPosition() for o in self.epucks if o != e]
+                    g.update(pos, e.getAngle(), centers)
                 elif(g.name == "reward"):
-                    centers = [o.position for o in self.objs]
+                    centers = [o.position for o in self.objs[:1]]
+                    g.update(pos, e.getAngle(), centers)
+                    centers = [o.position for o in self.objs[-1:]]
+                    g.update(pos, e.getAngle(), centers, extremes=1)
 
-                g.update(pos, e.getAngle(), centers)
 
 
     def setMotors(self, epuck=0, motors=[10, 10]):
