@@ -15,7 +15,7 @@ class GradSensor(object):
         if(ngrad < 4):
             m, da = (1 + ngrad) % 2, np.pi / (2 + ngrad)
         elif(ngrad == 4):
-            m, da = (1 + ngrad) % 2, np.pi / (1+ngrad)
+            m, da = (1 + ngrad) % 2, np.pi / (ngrad-1)
         else:
             m, da = (1 + ngrad) % 2, np.pi / (ngrad - 1)
         self.GradAngles = [k * da - ((ngrad - m) / 2) * da - m * da / 2 for k in range(ngrad)]
@@ -118,6 +118,10 @@ class Epuck(object):
         """Return position."""
         return self.body.position
 
+    def setPosition(self,p):
+        """Set position."""
+        self.body.position = p
+
     def getAngle(self):
         """Return position."""
         return self.body.angle
@@ -135,6 +139,7 @@ class Epuck(object):
         self.body.angularVelocity = 0
         step()
 
+
     def update(self):
         """update of position applying forces and IR."""
         body, angle, pos = self.body, self.body.angle, self.body.position
@@ -145,9 +150,12 @@ class Epuck(object):
         if(self.bHorizontal):
             d = vrotate(d, np.pi / 2)
 
-        if(self.bForceMotors):
-            body.ApplyTorque(fangle, wake=True)
-            body.ApplyForce(force=d, point=body.worldCenter, wake=False)
+        self.body.linearVelocity = [d[0]/50,d[1]/50]
+        self.body.angularVelocity = fangle/2
+
+        #if(self.bForceMotors):
+        #    body.ApplyTorque(fangle, wake=True)
+        #    body.ApplyForce(force=d, point=body.worldCenter, wake=False)
 
         if(self.bHorizontal):
             body.angularVelocity = 0
