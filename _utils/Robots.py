@@ -79,7 +79,7 @@ class Epuck(object):
         """Init of userData map with relevant values."""
 
         self.ini_pos = position
-        self.body = createCircle(position, r=r, bDynamic=True, name="epuck")
+        self.body = createCircle(position, r=r, bDynamic=True, restitution=0, name="epuck")
         self.body.angle = angle
         self.r = r
         # self.body = createBox(position, w=0.2,h=0.2,bDynamic=True)
@@ -147,11 +147,9 @@ class Epuck(object):
         fangle, fdist = 50 * (mRight - mLeft), 1000 * (mLeft + mRight)
         d = (fdist * np.cos(angle), fdist * np.sin(angle))
 
-        if(self.bHorizontal):
-            d = vrotate(d, np.pi / 2)
-
-        self.body.linearVelocity = [d[0]/50,d[1]/50]
-        self.body.angularVelocity = fangle/2
+        if(not self.bHorizontal):
+            self.body.linearVelocity = [d[0]/50,d[1]/50]
+            self.body.angularVelocity = fangle/2
 
         #if(self.bForceMotors):
         #    body.ApplyTorque(fangle, wake=True)

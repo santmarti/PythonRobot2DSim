@@ -20,10 +20,10 @@ world = Box2D.b2World(gravity=[0.0, -0.001]) # normal gravity -9.8
 arm = None
 nao = None
 ground = 0
-TARGET_FPS=500                  # Affects framerate (real max 50) and simulation speed                      
-TIME_STEP=1.0/TARGET_FPS        # as timestep is the inverse of it, setting it to a
-                                # real possible frame rate like 30 makes the sim unfeasible
-vel_iters, pos_iters = 40, 40   # To look also world.Step(TIME_STEP,vel_iters,pos_iters)
+TARGET_FPS = 500                  # Affects framerate (real max 50) and simulation speed                      
+TIME_STEP = 1.0 / TARGET_FPS      # as timestep is the inverse of it, setting it to a
+                                  # real possible frame rate like 30 makes the sim unfeasible
+vel_iters, pos_iters = 40, 40     # To look also world.Step(TIME_STEP,vel_iters,pos_iters)
 SPEED_JOINT = 14
 bDebug = True
 
@@ -320,7 +320,7 @@ def createGround(position=[0,-20]):
     return groundBody
 
 
-def createCircle(position, r=0.3, bDynamic=True, bCollideNoOne=False, density=1, name=""):
+def createCircle(position, r=0.3, bDynamic=True, bCollideNoOne=False, density=1, damping=0.1, restitution=1, friction=200, name=""):
     global world, fig, ax
     bodyDef = Box2D.b2BodyDef()
     bodyDef.position = position
@@ -330,8 +330,8 @@ def createCircle(position, r=0.3, bDynamic=True, bCollideNoOne=False, density=1,
         bodyDef.type = Box2D.b2_staticBody
 
     if(abs(world.gravity[1]) > 1):
-        bodyDef.linearDamping = 0.1
-        bodyDef.angularDamping = 0.1
+        bodyDef.linearDamping = damping
+        bodyDef.angularDamping = damping
     else:
         bodyDef.linearDamping = 70
         bodyDef.angularDamping = 30
@@ -343,7 +343,7 @@ def createCircle(position, r=0.3, bDynamic=True, bCollideNoOne=False, density=1,
     if(bCollideNoOne):
         mask = 0x0000
 
-    fixture = body.CreateFixture(maskBits=mask, shape=shape, density=density, friction=200)
+    fixture = body.CreateFixture(maskBits=mask, shape=shape, density=density, restitution=restitution, friction=friction)
     body.userData = {"name": name}
 
     return body
@@ -352,17 +352,17 @@ def createCircle(position, r=0.3, bDynamic=True, bCollideNoOne=False, density=1,
 def createRope(position, nparts=10, r=0.3, density=1, name=""):
     global world
     jointList = []
-    
-    firstBody = createCircle( position, r=r)
-    firstBody.userData["name"]="ropepart"   
+
+    firstBody = createCircle(position, r=r)
+    firstBody.userData["name"]="ropepart"
 
     prevBody = firstBody
     rbodies = [prevBody]
 
     pos = position
     for i in range(nparts):
-        body = createCircle( pos, r=r, density=density)
-        jointList.append( myCreateDistanceJoint(prevBody,body) )
+        body = createCircle(pos, r=r, density=density)
+        jointList.append(myCreateDistanceJoint(prevBody,body) )
         pos = (pos[0]+1.55*r, pos[1])
         prevBody = body
         rbodies.append(body)
@@ -383,7 +383,7 @@ def createBoxFixture(pos = (0,0), width=1.0, height=1.0, bDynamic=True, density 
     if(restitution != None): fixtureDef.restitution = restitution
 
     if(collisionGroup!=None): fixtureDef.filter.groupIndex = collisionGroup
-    
+
     if bDynamic: fixtureDef.density = density
     else:       fixtureDef.density = 0            
     return fixtureDef

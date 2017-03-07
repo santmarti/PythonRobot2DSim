@@ -8,28 +8,18 @@ from VectorFigUtils import vnorm, dist
 from Robots import NaoRobot, CartPole, Epuck
 import random
 
-from time import strftime
-import logging
-ilogstep = 0
 
-def iniLog(file=None):
-    global ilogstep
-    if(file is None):
-        file = strftime("data_%H_%M_%m_%d_%Y.log")
-    logging.basicConfig(filename=file, level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%I:%M:%S')
-    logging.FileHandler(file)
-    ilogstep = 0
 
-def addWalls(pos, dx=3, dh=0, h=2.8, th=0, bHoriz=True, bVert=True):               
+def addWalls(pos, dx=3, dh=0, h=2.8, th=0, bHoriz=True, bVert=True, damping = 0):               
     x, y = pos
     wl = 0.2
     yh = (5 + 1) / 2.0
     if(bHoriz):
-        createBox((x, y - 1 - dh + th), w=h + dh + wl + th, h=wl, bDynamic=False, name="wall_top")
-        createBox((x, y + 5 + dh + th), w=h + dh + wl + th, h=wl, bDynamic=False, name="wall_bottom")
+        createBox((x, y - 1 - dh + th), w=h + dh + wl + th, h=wl, bDynamic=False, damping=damping, name="wall_top")
+        createBox((x, y + 5 + dh + th), w=h + dh + wl + th, h=wl, bDynamic=False, damping=damping, name="wall_bottom")
     if(bVert):
-        createBox((x - dx - wl, y + yh - 1 + dh / 2 + th), w=wl, h=h + dh, bDynamic=False, name="wall_left")
-        createBox((x + dx + wl, y + yh - 1 + dh / 2 + th), w=wl, h=h + dh, bDynamic=False, name="wall_right")
+        createBox((x - dx - wl, y + yh - 1 + dh / 2 + th), w=wl, h=h + dh, bDynamic=False, damping=damping, name="wall_left")
+        createBox((x + dx + wl, y + yh - 1 + dh / 2 + th), w=wl, h=h + dh, bDynamic=False, damping=damping, name="wall_right")
 
 def addReward(who, pos=(0,0), vel=(0,0), reward_type=0, bDynamic=True, bCollideNoOne=False):
     if(reward_type == 0):
@@ -37,7 +27,7 @@ def addReward(who, pos=(0,0), vel=(0,0), reward_type=0, bDynamic=True, bCollideN
     else:
         name, r = "reward_small", 0.2
 
-    obj = createCircle(position=pos, bDynamic=bDynamic, bCollideNoOne=bCollideNoOne, density=10, name=name, r=r)
+    obj = createCircle(position=pos, bDynamic=bDynamic, bCollideNoOne=bCollideNoOne, density=5, damping=0, friction=0, name=name, r=r)
     obj.userData["energy"] = 1.0
     obj.userData["visible"] = 1.0
     obj.linearVelocity = vel
@@ -52,121 +42,50 @@ def addReward(who, pos=(0,0), vel=(0,0), reward_type=0, bDynamic=True, bCollideN
 class ExpSetupRandall():
     """Experimental setup including 2 agents in a 1D horizontal line."""
 
-    def __init__(self, n=2, radius=0.2, debug=False):
+    def __init__(self, n=2, radius=0.2, frontIR=12, debug=False):
         global bDebug
         bDebug = debug
         print "-------------------------------------------------"
         self.yini = -1.2
         self.radius = radius
-        world.gravity = Box2D.b2Vec2(0, -10)
-        self.epucks = [Epuck(position=[-1 + 2 * i, self.yini], frontIR=12, bHorizontal=True) for i in range(n)]
+        world.gravity = Box2D.b2Vec2(0, -1.01)
+        self.epucks = [Epuck(position=[-1 + 2 * i, self.yini], frontIR=frontIR, bHorizontal=True) for i in range(n)]
 
         for e in self.epucks:
             e.userData["score"] = 0
             e.userData["reward"] = 0
 
-        addWalls((0, 0), dx=5.7, dh=2, bHoriz=False)
-        createBox((0, -2), w=8, h=0.2, bDynamic=False, name="floor")
+        self.walls_dx = 7.25
+        addWalls((0, 0), dx=self.walls_dx, dh=2, bHoriz=False)
+        createBox((0, -2), w=7.65, h=0.2, bDynamic=False, name="floor")
 
         self.callback = RayCastCallback()
 
         self.objs = []
-        iniLog()
 
-        self.pinter = (0, 0)
         self.box = None
         # self.setOcclusion()
         self.phase_names = ["Training", "Easy", "Intermmediate", "Difficult"]
 
-    def setOcclusion(self):
-        # if(self.box is not None):
-        w, h, y = 5.65, 1, 3
-        self.box = createBox([0, y], w=w, h=h, bDynamic=False, bCollideNoOne=True, name="occlusion") 
+    def setOcclusion(self, y=3, h=1):
+        """Create an occulsion box that has no collisions."""
+        self.box = createBox([0, y], w=self.walls_dx, h=h, bDynamic=False, bCollideNoOne=True, name="occlusion") 
         self.box.userData["visible"] = 1.0
         self.box.userData["height"] = h
         self.box.userData["y"] = y
 
     def clearOcclusion(self):
-        world.DestroyBody(self.box)
+        """Clears the occulsion box."""
+        if(self.box is not None):
+            world.DestroyBody(self.box)
         self.box = None
 
-
-
-    def predictBall(self, pos, vel):
-        self.callback.fixture = None
-        world.RayCast(self.callback, pos, vel)
-
-        floorReached = False
-        #while(not floorReached):
-            #print self.callback.fixture
-        body = self.callback.fixture.body
-        floorReached = body.userData["name"] == "floor"
-        if(not floorReached):
-            vel = (-vel[0],vel[1])
-            self.callback.fixture = None
-            world.RayCast(self.callback, self.callback.point, vel)
-
-        if(self.callback.fixture is not None):
-            print self.callback.fixture.body.userData
-            self.pinter = self.callback.point
-
-        
-    def addRewardRandall(self):
-        vx = random.randint(-60, 60)
-        vy = random.randint(-100, -20)
-        pos, vel = [0, 8], (vx, vy)
-        addReward(self, pos=pos, vel=vel)
-        self.predictBall(pos, vel)
-
-        # if(abs(vx + vy) > 0):
-        #    self.pinter = (6 * vx / (vx + vy), 8 + 6 * vy / (vx + vy))
-
-    def updateRewards(self):
-        box, alive = self.box, []
-        if(len(self.objs) == 0):
-            self.addRewardRandall()
-        for o in self.objs:
-            x, y = o.position
-            bRemove = (y < -2 or y > 8)
-            if(box is not None and box.userData["visible"]):
-                h = box.userData["height"]
-                o.userData["visible"] = 1
-                if(y < box.position[1] + h and y > box.position[1] - h):
-                    o.userData["visible"] = 0
-
-            for c in o.contacts:
-                cpos, data = c.contact.worldManifold.points[0], c.other.userData                
-                if(data["name"] == "floor"):
-                    bRemove = True
-                    continue
-                if((data["name"] != "epuck") or (vnorm(cpos) < 0.01)):
-                    continue
-                o.userData["energy"] -= 0.5
-                if(o.userData["energy"] <= 0):
-                    data["score"] += np.clip(abs(x - c.other.position[0]), 0, 4) / 4
-                    data["reward"] += 1
-                    bRemove = True
-
-            if(bRemove):
-                world.DestroyBody(o)
-            else:
-                alive.append(o)
-        self.objs = alive
-
-
     def update(self):
-        global ilogstep
-        self.updateRewards()
-        strdata = ""
-        for e in self.epucks:
+        epucks = self.epucks
+        for e in epucks:
             e.update()
             x, y = e.body.position
-            strdata += "%f %f " % (x, y)
             e.body.position = [x, self.yini]
-
-        if(ilogstep % 5 == 0):
-            logging.info(strdata)
-        ilogstep += 1
 
     def setVelocity(self, epuck=0, vel=[0,0]):
         self.epucks[epuck].body.linearVelocity = vel

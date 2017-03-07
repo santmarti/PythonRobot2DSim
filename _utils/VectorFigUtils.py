@@ -54,7 +54,7 @@ def vangle(u,v):
 def vangleSign(u,v):
     return np.arctan2(v[1],v[0]) - np.arctan2(u[1],u[0])
 
-def vrotate(v, angle, anchor=[0,0]):
+def vrotate(v, angle, anchor=[0,0], mag=1):
     """Rotate a vector `v` by the given angle, relative to the anchor point."""
     x, y = v
     x = x - anchor[0]
@@ -65,7 +65,7 @@ def vrotate(v, angle, anchor=[0,0]):
     ny = x*sin_theta + y*cos_theta
     nx = nx + anchor[0]
     ny = ny + anchor[1]
-    return [nx, ny]
+    return [mag*nx, mag*ny]
 
 def computePointsAngle(pos,angle):
     vdir = vrotate([.4,0],angle)
