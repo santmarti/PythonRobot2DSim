@@ -15,7 +15,7 @@ class GradSensor(object):
         if(ngrad < 4):
             m, da = (1 + ngrad) % 2, np.pi / (2 + ngrad)
         elif(ngrad == 4):
-            m, da = (1 + ngrad) % 2, np.pi / (ngrad-1)
+            m, da = (1 + ngrad) % 2, np.pi / ngrad
         else:
             m, da = (1 + ngrad) % 2, np.pi / (ngrad - 1)
         self.GradAngles = [k * da - ((ngrad - m) / 2) * da - m * da / 2 for k in range(ngrad)]
@@ -353,6 +353,9 @@ class NaoRobot:
 
     def dm_maxs(self):
         return [1] * len(self.getJointLimits())
+
+    def dm_bounds(self):
+        return tuple([(self.dm_mins()[d], self.dm_maxs()[d]) for d in range(len(self.dm_mins()))])
 
     def ds_mins(self):
         return [-1] * 4

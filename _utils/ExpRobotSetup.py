@@ -121,7 +121,7 @@ class ExpSetupEpuck(object):
         th = .2
         positions = [(-3, 2 + th), (3, 2 + th)]
         angles = [2 * np.pi, np.pi]
-        self.epucks = [Epuck(position=positions[i], angle=angles[i], nother=2, nrewsensors=4) for i in range(n)]
+        self.epucks = [Epuck(position=positions[i], angle=angles[i], frontIR=0, nother=2, nrewsensors=4) for i in range(n)]
         addWalls((0, 0), dx=3.75, dh=0.1, h=3, th=th)
         self.objs = []
         addReward(self, pos=(0, 4 + th), vel=(0, 0), bDynamic=False, bCollideNoOne=True)

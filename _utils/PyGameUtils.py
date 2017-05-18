@@ -105,7 +105,7 @@ def drawWheel(screen,r,body,color,width):
 def drawIR(screen,pos,angle,nir,irangles,irvalues,r=0):
     for k in range(nir):
         v = Box2DWorld.vrotate((1, 0), angle + irangles[k])
-        c = pos + [0.97 * r * v[0], 0.97 * r * v[1]]
+        c = pos + [0.98 * r * v[0], 0.98 * r * v[1]]
         value = irvalues[k]
         if(value > 1):
             value = 1
@@ -121,11 +121,14 @@ def drawEpuck(screen, r, body, color, width):
         c = pos+[0.98*r*v[0],0.98*r*v[1]]
         my_draw_line(screen, [pos, c], color=color, width=width)
 
-    drawIR(screen, pos, body.angle, body.userData["nIR"], body.userData["IRAngles"], body.userData["IRValues"], r)
+    nir = body.userData["nIR"]
+    drawIR(screen, pos, body.angle, nir, body.userData["IRAngles"], body.userData["IRValues"], r)
     if(body.userData["nOtherSensors"] > 0):
-        drawIR(screen, pos, body.angle, body.userData["nOtherSensors"], body.userData["OtherAngles"], body.userData["OtherValues"], 0.73 * r)
+        d = 0.73 if nir > 0 else 1.0
+        drawIR(screen, pos, body.angle, body.userData["nOtherSensors"], body.userData["OtherAngles"], body.userData["OtherValues"], d * r)
     if(body.userData["nRewardSensors"] > 0):
-        drawIR(screen, pos, body.angle, body.userData["nRewardSensors"], body.userData["RewardAngles"], body.userData["RewardValues"], 0.45 * r)
+        d = 0.43 if nir > 0 else 0.73
+        drawIR(screen, pos, body.angle, body.userData["nRewardSensors"], body.userData["RewardAngles"], body.userData["RewardValues"], d * r)
 
 
 # When drawing a circle called from
