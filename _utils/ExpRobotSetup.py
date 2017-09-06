@@ -17,9 +17,10 @@ def addWalls(pos, dx=3, dh=0, h=2.8, th=0, bHoriz=True, bVert=True, damping = 0)
     if(bHoriz):
         createBox((x, y - 1 - dh + th), w=h + dh + wl + th, h=wl, bDynamic=False, damping=damping, name="wall_top")
         createBox((x, y + 5 + dh + th), w=h + dh + wl + th, h=wl, bDynamic=False, damping=damping, name="wall_bottom")
+
     if(bVert):
-        createBox((x - dx - wl, y + yh - 1 + dh / 2 + th), w=wl, h=h + dh, bDynamic=False, damping=damping, name="wall_left")
-        createBox((x + dx + wl, y + yh - 1 + dh / 2 + th), w=wl, h=h + dh, bDynamic=False, damping=damping, name="wall_right")
+        createBox((x - dx - wl, y + yh - 1 + dh / 2 + th), w=wl, h=h + dh, bDynamic=False, damping=damping, friction=0, name="wall_left")
+        createBox((x + dx + wl, y + yh - 1 + dh / 2 + th), w=wl, h=h + dh, bDynamic=False, damping=damping, friction=0, name="wall_right")
 
 def addReward(who, pos=(0,0), vel=(0,0), reward_type=0, bDynamic=True, bCollideNoOne=False):
     if(reward_type == 0):
@@ -163,7 +164,7 @@ class ExpSetupDualCartPole:
         print "-------------------------------------------------"
         print "Created Exp Dual Cart Pole Setup ", name, "Debug: ", bDebug
 
-        world.gravity = Box2D.b2Vec2(0, -140)
+        world.gravity = Box2D.b2Vec2(0, -250)
 
         self.name = name
         self.salient = []
@@ -219,11 +220,11 @@ class ExpSetupDualCartPole:
         x, y = pos
         wl = 0.2
         h = (5 + 1) / 2.0
-        l = 6
+        l = 4.5
         createBox((x, y - 1), w=l + 2 * wl, h=wl, bDynamic=False)
         # createBox((x,y+5), w = 3, h = wl, bDynamic=False)
-        createBox((x - l - wl, y + h - 1), w=wl, h=2.8, bDynamic=False)
-        createBox((x + l + wl, y + h - 1), w=wl, h=2.8, bDynamic=False)
+        createBox((x - l - wl, y + h - 1), w=wl, h=1.5, bDynamic=False, damping=0, friction=0)
+        createBox((x + l + wl, y + h - 1), w=wl, h=1.5, bDynamic=False, damping=0, friction=0)
 
     def getSalient(self):
         return [cart.getBodyPos() for cart in self.carts]

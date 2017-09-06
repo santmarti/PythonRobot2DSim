@@ -52,7 +52,7 @@ def vangle(u,v):
     return angle
 
 def vangleSign(u,v):
-    return np.arctan2(v[1],v[0]) - np.arctan2(u[1],u[0])
+    return -np.arctan2(v[1],v[0]) + np.arctan2(u[1],u[0])
 
 def vrotate(v, angle, anchor=[0,0], mag=1):
     """Rotate a vector `v` by the given angle, relative to the anchor point."""

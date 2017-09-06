@@ -206,7 +206,7 @@ def drawEpuck(ax,shape,body):
         drawCircle(ax,c,r=0.07,color=[1-value,value,0])
 
 
-def plotVectors(ax, centers, specials=[], dirs = [], label='_', cradius=0.1, ccolor='r'):
+def plotVectors(ax, centers, specials=[], dirs=[], label='_', cradius=0.1, ccolor='r'):
     for i,p in enumerate(centers):
         dx,dy = -2*cradius,cradius
         if(p[0] >= 0): dx,dy = cradius,cradius/2.0
@@ -220,7 +220,7 @@ def plotVectors(ax, centers, specials=[], dirs = [], label='_', cradius=0.1, cco
         
         if(len(dirs)>0):
             d = dirs[i]
-            vel = (3*d[0],3*d[1])
+            vel = (d[0],d[1])
             if(VectorFigUtils.vnorm(vel)):
                 ax.arrow(p[0], p[1], vel[0], vel[1], head_width=0.07, head_length=0.11, fc='k', ec='k')
 
@@ -320,7 +320,7 @@ def createGround(position=[0,-20]):
     return groundBody
 
 
-def createCircle(position, r=0.3, bDynamic=True, bCollideNoOne=False, density=1, damping=0.1, restitution=1, friction=200, name=""):
+def createCircle(position, r=0.3, bDynamic=True, bCollideNoOne=False, density=1, damping=0.05, restitution=0.1, friction=200, name=""):
     global world, fig, ax
     bodyDef = Box2D.b2BodyDef()
     bodyDef.position = position
@@ -369,16 +369,16 @@ def createRope(position, nparts=10, r=0.3, density=1, name=""):
     return rbodies, [jointList[0], jointList[-1]]
 
 
-def createBoxFixture(pos = (0,0), width=1.0, height=1.0, bDynamic=True, density = 1, collisionGroup = None, restitution=None):
+def createBoxFixture(pos = (0,0), width=1.0, height=1.0, bDynamic=True, friction=0.3, density=1, collisionGroup=None, restitution=None):
     global world
     boxShape = Box2D.b2PolygonShape()
     boxShape.SetAsBox(width, height, pos, 0)    # width, height, position (x,y), angle 
     fixtureDef = Box2D.b2FixtureDef()
     fixtureDef.shape = boxShape
 
-    fixtureDef.friction = 0.3
+    fixtureDef.friction = friction
     if(abs(world.gravity[1]) > 1):
-        fixtureDef.restitution = 0.6
+        fixtureDef.restitution = 0.05
 
     if(restitution != None): fixtureDef.restitution = restitution
 
@@ -388,7 +388,7 @@ def createBoxFixture(pos = (0,0), width=1.0, height=1.0, bDynamic=True, density 
     else:       fixtureDef.density = 0            
     return fixtureDef
 
-def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, bDynamic=True, density=1, damping = 0, collisionGroup = None, restitution=None, bCollideNoOne=False, name=""):
+def createBox(position, w=1.0, h=1.0, wdiv=1, hdiv=1, bDynamic=True, density=1, friction=0.3, damping=0, collisionGroup=None, restitution=None, bCollideNoOne=False, name=""):
     global world
     bodyDef = Box2D.b2BodyDef()
     bodyDef.position = position
@@ -413,7 +413,7 @@ def createBox(position, w=1.0, h=1.0, wdiv = 1, hdiv = 1, bDynamic=True, density
         for j in range(wdiv):
             x = 2*j*dw + (1-wdiv)*dw
             y = 2*i*dh + (1-hdiv)*dh
-            fixtureDef = createBoxFixture((x, y), width=dw, height=dh, bDynamic=bDynamic, density=density, collisionGroup=collisionGroup, restitution=restitution)
+            fixtureDef = createBoxFixture((x, y), width=dw, height=dh, bDynamic=bDynamic, density=density, friction=friction, collisionGroup=collisionGroup, restitution=restitution)
             if(bCollideNoOne):
                 fixtureDef.filter.maskBits = 0x0000
             fixture = body.CreateFixture(fixtureDef)
@@ -461,35 +461,37 @@ def createArm(position=(0, 0), nparts = 4, name="simple", collisionGroup = None,
 
         if(i==0): box = createBox( pos, w, l*0.5, hdiv = hdiv, collisionGroup=-1 )
         else: box = createBox( pos, w, l*0.5, damping=500, hdiv = hdiv, collisionGroup=collisionGroup)
-        
-        box.userData["name"]="armpart"    
-        if(signDir < 0): box.userData["name"]="reversearmpart"    
 
-        if(bLateralize == 0): j = myCreateRevoluteJoint(prevBody,box,anchor)
-        elif(bLateralize == 1): 
-            if(i == 0):           j = myCreateRevoluteJoint(prevBody,box,anchor,lowerAngle=-0.4 * np.pi,upperAngle=0.4 * np.pi)    
-            elif(i == nparts-1):  j = myCreateRevoluteJoint(prevBody,box,anchor,lowerAngle=-0.87 * np.pi,upperAngle=0.2 * np.pi)   # added wrist like + redundancy 
-            else:                 j = myCreateRevoluteJoint(prevBody,box,anchor,lowerAngle=-0.87 * np.pi,upperAngle=0)    
-        elif(bLateralize == 2): 
-            if(i == 0):           j = myCreateRevoluteJoint(prevBody,box,anchor,lowerAngle=-0.4 * np.pi,upperAngle=0.4 * np.pi)    
-            elif(i == nparts-1):  j = myCreateRevoluteJoint(prevBody,box,anchor,lowerAngle=-0.2 * np.pi,upperAngle=0.87 * np.pi)    
-            else:                 j = myCreateRevoluteJoint(prevBody,box,anchor,lowerAngle=0,upperAngle=0.87 * np.pi)    
+        box.userData["name"]="armpart"
+        if(signDir < 0): box.userData["name"]="reversearmpart"
+
+        if(i == 0):
+            j = myCreateRevoluteJoint(prevBody,box,anchor,lowerAngle=-0.4 * np.pi,upperAngle=0.4 * np.pi)
+        else:
+            if(bLateralize == 0):
+                j = myCreateRevoluteJoint(prevBody,box,anchor)
+            elif(bLateralize == 1):
+                if(i == nparts-1):  j = myCreateRevoluteJoint(prevBody,box,anchor,lowerAngle=-0.87 * np.pi,upperAngle=0.2 * np.pi)   # added wrist like + redundancy 
+                else:               j = myCreateRevoluteJoint(prevBody,box,anchor,lowerAngle=-0.87 * np.pi,upperAngle=0)    
+            elif(bLateralize == 2):
+                if(i == nparts-1):  j = myCreateRevoluteJoint(prevBody,box,anchor,lowerAngle=-0.2 * np.pi,upperAngle=0.87 * np.pi)    
+                else:               j = myCreateRevoluteJoint(prevBody,box,anchor,lowerAngle=0,upperAngle=0.87 * np.pi)    
 
         jointList.append(j)
         prevBody = box
         lsum += l
         if(bShrink): l /= 1.1
- 
+
     if(bHand):
         y = d*l*nparts
         pos = tuple(map(sum,zip(position, (0, y))))
         anchor = pos
-        box = createBox( pos, l*0.2, w*0.6 )
-        j = myCreateRevoluteJoint(prevBody,box,anchor)  
+        box = createBox(pos, l*0.2, w*0.6)
+        j = myCreateRevoluteJoint(prevBody,box,anchor)
         jointList.append(j)
-        
+
     return jointList
-            
+
 
 
 
