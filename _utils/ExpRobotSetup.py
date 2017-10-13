@@ -9,8 +9,9 @@ from Robots import NaoRobot, CartPole, Epuck
 import random
 
 
-
-def addWalls(pos, dx=3, dh=0, h=2.8, th=0, bHoriz=True, bVert=True, damping = 0):               
+# put some walls independant of the screen; beacuse screen is defined in PyGame
+def addWalls(pos, dx=3, dh=0, h=2.8, th=0, bHoriz=True, bVert=True, damping = 0): 
+    """ Also defined locally in ExpSetupDualCartPole!!! """
     x, y = pos
     wl = 0.2
     yh = (5 + 1) / 2.0
@@ -216,7 +217,7 @@ class ExpSetupDualCartPole:
             self.carts[i].update()
 
     def addWalls(self, pos):
-        """Limits of the world."""
+        """Limits of the world. Also defined globaly!!! """
         x, y = pos
         wl = 0.2
         h = (5 + 1) / 2.0
@@ -531,6 +532,51 @@ class ExpSetupNao:
         self.setObjPos()
 
 
+
+
+# *****************************************************************
+# Experimental Setup MultiAgent
+# *****************************************************************
+
+class ExpSetupMultiAgent(object):
+    """Exp setup class with two epucks and two reward sites."""
+
+    def __init__(self, n=1, debug=False):
+        """Create the two epucks, two rewards and walls."""
+        global bDebug
+        bDebug = debug
+        print "-------------------------------------------------"
+        th = .2
+
+        positions = [ (random.uniform(-5,5), random.uniform(-1,3)) for i in range(n)]
+
+        angles = [random.uniform(0,2*np.pi) for i in range(n)]
+        self.epucks = [Epuck(position=positions[i], angle=angles[i], frontIR=0, nother=2, nrewsensors=4) for i in range(n)]
+
+        self.objs = []
+        addReward(self, pos=(0, 4 + th), vel=(0, 0), bDynamic=False, bCollideNoOne=True)
+        addReward(self, pos=(0, 0 + th), vel=(0, 0), reward_type=1, bDynamic=False, bCollideNoOne=True)
+
+    def update(self):
+        """Update of epucks positions and gradient sensors: other and reward."""
+        for e in self.epucks:
+            e.update()
+            pos = e.getPosition()
+
+            for g in e.GradSensors:
+                if(g.name == "other"):
+                    centers = [o.getPosition() for o in self.epucks if o != e]
+                    g.update(pos, e.getAngle(), centers)
+                elif(g.name == "reward"):
+                    centers = [o.position for o in self.objs[:1]]
+                    g.update(pos, e.getAngle(), centers)
+                    centers = [o.position for o in self.objs[-1:]]
+                    g.update(pos, e.getAngle(), centers, extremes=1)
+
+
+
+    def setMotors(self, epuck=0, motors=[10, 10]):
+        self.epucks[epuck].motors = motors
 
 
 

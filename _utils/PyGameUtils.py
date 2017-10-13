@@ -5,17 +5,31 @@ from Box2D.b2 import * # This maps Box2D.b2Vec2 to vec2 (and so on)
 import Box2DWorld
 
 SCREEN_WIDTH, SCREEN_HEIGHT, X0, Y0 = 640,480,640/2,480/5
-
-def setScreenSize(w,h):
-    global SCREEN_WIDTH, SCREEN_HEIGHT, X0, Y0
-    SCREEN_WIDTH, SCREEN_HEIGHT=w,h
-    X0 = SCREEN_WIDTH/2 # displacement for python notebook plotting purposes 
-    Y0 = SCREEN_HEIGHT/5 # not used for the moment
-
 PPM = 65 # pixel size only for pygame
 colors = {staticBody:(255,255,235,235), dynamicBody:(127,127,127,190)}
 
-# ****************************************************************************     
+def setScreenSize(w,h,ppm=65,center=False):
+    global SCREEN_WIDTH, SCREEN_HEIGHT, X0, Y0, PPM
+    PPM=ppm
+    SCREEN_WIDTH, SCREEN_HEIGHT=w,h
+    X0 = SCREEN_WIDTH/2 # displacement for python notebook plotting purposes
+    if(not center): Y0 = SCREEN_HEIGHT/5
+    else: Y0 = SCREEN_HEIGHT/2 
+
+# put walls dependant on the screen
+def addScreenWalls(): 
+    w = 1
+    h = 1+SCREEN_HEIGHT/(2*PPM)+w
+    x = int(SCREEN_WIDTH/(2*PPM))+w
+    y = SCREEN_HEIGHT/(2*PPM)+w
+    print X0,Y0
+    walls = [(x, 0, w, h), (-x, 0, w, h), (0, -y, h, w), (0, y, h, w)]
+
+    for xi,yi,wi,hi in walls:
+        Box2DWorld.createBox((xi,yi), w=wi, h=hi, bDynamic=False, damping=0, name="wall_top")
+
+
+# ****************************************************************************
 # ----  OSC receiving
 server = None
 def receiveLeft(addr, tags, data, source):

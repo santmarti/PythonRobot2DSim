@@ -28,9 +28,11 @@ class GradSensor(object):
         if(extremes):
             sensors = [0, self.ngrad - 1]
 
+        if(len(centers) == 0): return
+
         for k in sensors:
             v = vrotate((1, 0), angle + self.GradAngles[k])
-            vals = [0, 0]
+            vals = [0 for i in range(len(centers))]
             for i, c in enumerate(centers):
                 vc = (c[0] - pos[0], c[1] - pos[1])
                 d = dist(pos, c)
