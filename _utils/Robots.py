@@ -464,7 +464,7 @@ class CartPole:
     def setMotorSpeed(self,speed):  
         self.joint.motorSpeed = speed
 
-    def getAngle(self):
+    def getIR(self):
         return self.IR.IRValues[0]
 
     def getAngle(self):
